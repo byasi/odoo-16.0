@@ -1,0 +1,18 @@
+<odoo>
+    <data>
+        <!-- Inherit the stock.picking form view -->
+        <record id="view_mrp_production_form_inherit" model="ir.ui.view">
+            <field name="name">mrp.production.form.inherit</field>
+            <field name="model">mrp.production</field>
+            <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+            <field name="arch" type="xml">
+                <!-- Add your field after product_uom_qty -->
+                <xpath expr="//field[@name='product_uom_qty']" position="after">
+                    <field name="first_process_wt" string="First Process Wt"/>
+                    <field name="product_quality" string="Product Quality"/>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>
