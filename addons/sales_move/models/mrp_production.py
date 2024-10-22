@@ -4,6 +4,6 @@ from odoo.exceptions import UserError, ValidationError
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
 
-    product_quality = fields.Float(string="Product Quality")
-    first_process_wt = fields.Float(string="First Process Wt")
+    weighted_average_pq = fields.Float(string="Weighted Average Product Quality")
+    actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
 
