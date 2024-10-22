@@ -1,0 +1,28 @@
+<odoo>
+    <data>
+        <record id="account_edi.view_move_form_inherit" model="ir.ui.view">
+            <field name="name">account.move.form</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='button_cancel']" position="after">
+                    <button name="calculate" string="Calculate" type="object"/>
+                </xpath>
+                <xpath expr="//group[@id='header_left_group']" position="inside">
+                    <field name="selling_price"/>
+                    <field name="buying_price"/>
+                </xpath>
+
+                <xpath expr="//group[@id='header_right_group']" position="inside">
+                    <!-- <field name="calc_field" widget="selection"/> -->
+                    <field name="calc_field" widget="selection"/>
+                    <field name="profit"/>
+                </xpath>
+
+                <xpath expr="//button[@name='calculate']" position="after">
+                    <field name="calc_result" readonly="1"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

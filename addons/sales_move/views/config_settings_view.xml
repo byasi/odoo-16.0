@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form_inherit" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.account</field>
+            <field name="model">res.config.settings</field>
+            <field name="priority" eval="40"/>
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@data-key='account']" position="inside">
+                    <h2>Python Formula Settings</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box" title="Enables approval feature in payments."
+                             groups="account.group_account_manager">
+                            <div class="o_setting_right_pane">
+                                <div class="text-muted">
+                                    Suggest any formular by defining what you want for formular to be.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <label class="col-md-3 o_light_label" for="formula_one" string="Formular One"/>
+                                        <div class="col-md-9">
+                                            <field name="formula_one" widget="textarea"/>
+                                        </div>
+                                        <label class="col-md-3 o_light_label" for="formula_two" string="Formular two"/>
+                                        <div class="col-md-9">
+                                             <field name="formula_two" widget="textarea"/>
+                                        </div>
+                                    </div>
+                                    <div class="row mt16">
+                                    </div>
+                                    <div class="row mt16">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

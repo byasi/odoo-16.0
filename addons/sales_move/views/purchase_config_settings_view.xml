@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form_purchase_inherit" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.purchase</field>
+            <field name="model">res.config.settings</field>
+            <field name="priority" eval="40"/>
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@name='matrix_setting_container']" position="after">
+                    <h2>Python Formula Settings</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box" title="Enables approval feature in payments."
+                             groups="account.group_account_manager">
+                            <div class="o_setting_right_pane">
+                                <div class="text-muted">
+                                    Suggest any formular by defining what you want for formular to be.
+                                </div>
+                                <div class="content-group">
+                                    <div class="row mt16">
+                                        <label class="col-md-3 o_light_label" for="method_1" string="Method One"/>
+                                        <div class="col-md-9">
+                                            <field name="method_1" widget="textarea"/>
+                                        </div>
+                                        <label class="col-md-3 o_light_label" for="method_2" string="Method two"/>
+                                        <div class="col-md-9">
+                                             <field name="method_2" widget="textarea"/>
+                                        </div>
+                                    </div>
+                                    <div class="row mt16">
+                                    <label class="col-md-3 o_light_label" for="method_3" string="Method three"/>
+                                        <div class="col-md-9">
+                                             <field name="method_3" widget="textarea"/>
+                                        </div>
+                                    </div>
+                                    <div class="row mt16">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
