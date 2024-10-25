@@ -17,6 +17,8 @@
         'views/purchase_config_settings_view.xml',
         'views/stock_picking_views.xml',
         'views/mrp_production-views.xml',
+        'views/stock_move_views.xml',
+        'views/stock_lot_views.xml',
     ],
     'license': 'LGPL-3',
     'images': ['static/description/banner.png'],
