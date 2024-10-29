@@ -11,8 +11,6 @@ class StockMove(models.Model):
 
     product_quality = fields.Float(string="Product Quality")
     first_process_wt = fields.Float(string="First Process Wt")
-    mo_product_quality = fields.Float(string="MO Product Quality")
-    mo_first_process_wt = fields.Float(string="MO First Process Wt")
     total_weighted_average = fields.Float(
     string="Total Weighted Average",
     compute="_compute_total_weighted_average",
@@ -38,22 +36,24 @@ class StockMove(models.Model):
         readonly=True
     )
 
-    @api.depends('move_line_ids.lot_product_quality', 'move_line_ids.lot_first_process_wt')
+    @api.depends('move_line_ids.mo_product_quality', 'move_line_ids.mo_first_process_wt')
     def _compute_average_values(self):
         for move in self:
             total_lines = len(move.move_line_ids)
-            total_product_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
-            total_first_process_wt = self.custom_round_down(sum(line.lot_first_process_wt for line in move.move_line_ids))
+            total_product_quality = self.custom_round_down(sum(line.mo_product_quality for line in move.move_line_ids))
+            total_first_process_wt = self.custom_round_down(sum(line.mo_first_process_wt for line in move.move_line_ids))
 
             move.average_lot_product_quality = self.custom_round_down((total_product_quality / total_lines)) if total_lines else 0.0
             move.average_lot_first_process_wt = self.custom_round_down((total_first_process_wt / total_lines)) if total_lines else 0.0
 
-    @api.depends('move_line_ids.lot_product_quality', 'move_line_ids.lot_first_process_wt')
+    @api.depends('move_line_ids.mo_product_quality', 'move_line_ids.mo_first_process_wt', 'display_quantity')
     def _compute_total_weighted_average(self):
         for move in self:
-            total_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
-            total_weighted_value = self.custom_round_down(sum(line.lot_product_quality * line.lot_first_process_wt for line in move.move_line_ids))
-            move.total_weighted_average = self.custom_round_down((total_weighted_value / total_quality) ) if total_quality else 0.0
+            total_quantity =  move.display_quantity
+            # total_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
+            # NOTE  divide by totalquantity not totalquality
+            total_weighted_quality = self.custom_round_down(sum(self.custom_round_down(line.mo_product_quality * line.mo_first_process_wt) for line in move.move_line_ids))
+            move.total_weighted_average = self.custom_round_down((total_weighted_quality / move.display_quantity) ) if total_quantity else 0.0
 
     @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.lot_id.product_qty')
     def _compute_display_quantity(self):
@@ -61,8 +61,7 @@ class StockMove(models.Model):
             lot_quantity = 0.0
             for line in move.move_line_ids:
                 if line.lot_id:
-                    lot_quantity = line.lot_id.product_qty
-                    break  # Stop after finding the first lot_id
+                    lot_quantity = sum(line.lot_id.product_qty for line in move.move_line_ids)
             move.display_quantity = lot_quantity
 
     @api.model_create_multi
@@ -116,23 +115,12 @@ class StockMoveLine(models.Model):
 
     product_quality = fields.Float(string="Product Quality", store=True)
     first_process_wt = fields.Float(string="First Process Wt", store=True)
-    lot_product_quality = fields.Float(string="Lot Product Quality", compute="_fetch_lot_values", store=True)
-    lot_first_process_wt = fields.Float(string="Lot First Process Wt", compute="_fetch_lot_values", store=True)
+    lot_product_quality = fields.Float(string="Product Quality", related="move_id.product_quality", store=True)  # from Inventory
+    lot_first_process_wt = fields.Float(string="First Process Wt", related="move_id.first_process_wt", store=True) # from Inventory
+    mo_product_quality = fields.Float(string="Product Quality ", compute="_fetch_lot_values", store=True)
+    mo_first_process_wt = fields.Float(string="First Process Wt", compute="_fetch_lot_values", store=True)
 
-    total_weighted_average = fields.Float(
-        string="Total Weighted Average",
-        compute="_compute_total_weighted_average",
-        store=True,
-        readonly=True)
-
-    @api.depends('lot_product_quality', 'lot_first_process_wt')
-    def _compute_total_weighted_average(self):
-        total_quality = sum(line.lot_product_quality for line in self)
-        total_weighted_value = sum(line.lot_product_quality * line.lot_first_process_wt for line in self)
-        for line in self:
-            line.total_weighted_average = (total_weighted_value / total_quality) if total_quality else 0.0
-
-
+# takes place in Manufacturing
     @api.depends('lot_id')
     def _fetch_lot_values(self):
         for line in self:
@@ -140,17 +128,50 @@ class StockMoveLine(models.Model):
                 # Fetch the first record with the matching lot name
                 matching_line = self.search([('lot_id.name', '=', line.lot_id.name)], limit=1)
                 # Set the values
-                line.lot_product_quality = matching_line.product_quality
-                line.lot_first_process_wt = matching_line.first_process_wt
+                line.mo_product_quality = matching_line.lot_product_quality
+                line.mo_first_process_wt = matching_line.lot_first_process_wt
             else:
-                line.lot_product_quality = 0.0
-                line.lot_first_process_wt = 0.0
+                line.mo_product_quality = 0.0
+                line.mo_first_process_wt = 0.0
 
 class StockLot(models.Model):
     _inherit = "stock.lot"
 
-    product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality")
-    first_process_wt = fields.Float(string="First Process Wt", compute="_compute_first_process_wt")
+    product_quality = fields.Float(
+        string="Product 1 Quality",
+        compute="_compute_product_quality",
+        store=True
+    )
+    first_process_wt = fields.Float(
+        string="First 1 Process Weight",
+        compute="_compute_first_process_wt",
+        store=True
+    )
+
+    @api.depends('product_quality')
+    def _compute_product_quality(self):
+        for lot in self:
+            lot.product_quality = 20.0
+            # Get the latest stock.move.line related to the lot
+            # move_line = self.env['stock.move.line'].search(
+            #     [('lot_id', '=', lot.id)],
+            #     limit=1, order='date desc'
+            # )
+            # lot.product_quality = move_line.lot_product_quality if move_line else 10.0
+
+    @api.depends('product_quality')
+    def _compute_first_process_wt(self):
+            for lot in self:
+                lot.first_process_wt = 20.0
+                # Get the latest stock.move.line related to the lot
+                # move_line = self.env['stock.move.line'].search(
+                #     [('lot_id', '=', lot.id)],
+                #     limit=1, order='date desc'
+                # )
+                # lot.first_process_wt = move_line.lot_first_process_wt if move_line else 10.0
+
+    # product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality")
+    # first_process_wt = fields.Float(string="First Process Wt", compute="_compute_first_process_wt")
 
     @api.depends('quant_ids.product_quality', 'quant_ids.location_id.usage')
     def _compute_product_quality(self):

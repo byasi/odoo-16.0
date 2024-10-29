@@ -24,3 +24,22 @@ class MrpProduction(models.Model):
                 # Customize as needed if there are multiple moves or a specific condition
                 stock_move = production.move_raw_ids.filtered(lambda m: m.display_quantity).sorted('date', reverse=True)[:1]
                 production.display_quantity = stock_move.display_quantity if stock_move else 0.0
+
+class ChangeProductionQty(models.TransientModel):
+    _inherit = 'change.production.qty'
+
+    product_qty = fields.Float(
+            'Quantity To Produce',
+            compute='_compute_product_qty',
+            digits='Product Unit of Measure', required=True)
+
+    @api.depends_context('active_id')
+    def _compute_product_qty(self):
+        # Access the production order using the active_id from the context
+        for record in self:
+            production_id = self.env.context.get('active_id')
+            if production_id:
+                production = self.env['mrp.production'].browse(production_id)
+                record.product_qty = production.display_quantity
+            else:
+                record.product_qty = 10.0
