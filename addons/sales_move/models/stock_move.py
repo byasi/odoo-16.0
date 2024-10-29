@@ -37,6 +37,7 @@ class StockMove(models.Model):
         store=True,
         readonly=True
     )
+
     @api.depends('move_line_ids.lot_product_quality', 'move_line_ids.lot_first_process_wt')
     def _compute_average_values(self):
         for move in self:
