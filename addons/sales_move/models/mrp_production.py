@@ -3,7 +3,7 @@ from odoo import models, fields, api
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
 
-    weighted_average_pq = fields.Float(string="Weighted Average Product Quality")
+    weighted_average_pq = fields.Float(string="Weighted Average Product Quality", compute='_compute_weighted_average_pq',)
     actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
     product_quality = fields.Float(string="Product Quality")
     first_process_wt = fields.Float(string="First Process Wt")
@@ -24,6 +24,15 @@ class MrpProduction(models.Model):
                 # Customize as needed if there are multiple moves or a specific condition
                 stock_move = production.move_raw_ids.filtered(lambda m: m.display_quantity).sorted('date', reverse=True)[:1]
                 production.display_quantity = stock_move.display_quantity if stock_move else 0.0
+
+    @api.depends('move_raw_ids.total_weighted_average')
+    def _compute_weighted_average_pq(self):
+        for production in self:
+            # If we consider the `move_raw_ids` field (moves that bring in raw materials)
+            # or `move_finished_ids` (moves that transfer finished goods)
+            if production.move_raw_ids:
+                stock_move = production.move_raw_ids.filtered(lambda m: m.total_weighted_average).sorted('date', reverse=True)[:1]
+                production.weighted_average_pq = stock_move.total_weighted_average if stock_move else 0.0
 
 class ChangeProductionQty(models.TransientModel):
     _inherit = 'change.production.qty'
