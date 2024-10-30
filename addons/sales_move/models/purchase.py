@@ -18,7 +18,7 @@ class PurchaseOrder(models.Model):
     # tax = fields.Float(string="Tax")
     deduction_head = fields.Float(string="Deduction Head")
     additions = fields.Float(string="Additions")
-    market_price_currency = fields.Many2one('res.currency',string="Market Price Currency")
+    market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     discount = fields.Float(string="Discount/additions")
     net_price = fields.Monetary(
     string="Net Market Price",
@@ -26,12 +26,12 @@ class PurchaseOrder(models.Model):
     currency_field='market_price_currency',
     store=True
     )
-    material_unit = fields.Many2one('uom.uom',string="Market Price Unit")
-    material_unit_input = fields.Many2one('uom.uom',string="Material Unit Input")
-    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency")
-    transaction_unit = fields.Many2one('uom.uom',string="Transaction Unit")
+    material_unit = fields.Many2one('uom.uom',string="Market Price Unit", default=lambda self: self.env.ref('uom.product_uom_oz').id)
+    material_unit_input = fields.Many2one('uom.uom',string="Material Unit Input", default=lambda self: self.env.ref('uom.product_uom_gram').id)
+    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency", default=lambda self: self.env.ref('base.USD').id)
+    transaction_unit = fields.Many2one('uom.uom',string="Transaction Unit", default=lambda self: self.env.ref('uom.product_uom_ton').id)
     unit_convention = fields.Many2one('uom.uom',string="Unit Convention")
-    x_factor = fields.Float(string="Xfactor")
+    x_factor = fields.Float(string="Xfactor", default=92)
     net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total", store=True)
     deductions = fields.Monetary(string="Deductions",currency_field='deduction_currency')
     deduction_currency = fields.Many2one('res.currency',string="Deduction Currency")

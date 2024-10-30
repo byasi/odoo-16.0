@@ -33,6 +33,7 @@ class ChangeProductionQty(models.TransientModel):
             compute='_compute_product_qty',
             digits='Product Unit of Measure', required=True)
 
+    # overrides the 
     @api.depends_context('active_id')
     def _compute_product_qty(self):
         # Access the production order using the active_id from the context

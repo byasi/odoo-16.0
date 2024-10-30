@@ -23,7 +23,7 @@
                     <field name="total_weighted_average" string="Total Weighted Average" />
                     <!-- <field name="display_quantity" string="Product Quantity" /> -->
                     <field name="average_lot_product_quality" string="Average Product Quality" />
-                    <field name="average_lot_first_process_wt" string="Average First Process Wt" />
+                    <!-- <field name="average_lot_first_process_wt" string="Average First Process Wt" /> -->
                 </xpath>
             </field>
         </record>

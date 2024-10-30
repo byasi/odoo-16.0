@@ -56,7 +56,7 @@
                     <!-- <field name="unit_convention" string="Unit Convention"/> -->
                     <field name="transaction_price_per_unit" string="Transaction Price per Unit"/>
                     <field name="x_factor" string="Xfactor"/>
-                    <field name="lot_no" string="Lot No" />
+                    <!-- <field name="lot_no" string="Lot No" /> -->
                      <!-- <field name="selected_product_id" string="Select Product"/> -->
                 </xpath>
 
