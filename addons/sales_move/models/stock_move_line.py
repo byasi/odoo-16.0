@@ -4,7 +4,11 @@ import math
 
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"
-
+    weighted_average_quality = fields.Float(
+        string="Weighted Average Product Quality",
+        compute="_compute_weighted_average_quality",
+        store=True
+    )
     product_quality = fields.Float(string="Product Quality", store=True)
     first_process_wt = fields.Float(string="First Process Wt", store=True)
     lot_product_quality = fields.Float(string="Product Quality", related="move_id.product_quality", store=True)  # from Inventory
@@ -35,3 +39,14 @@ class StockMoveLine(models.Model):
                 line.qty_done = line.mo_first_process_wt or 0.0
             else:  # Inventory or other modules
                 line.qty_done = line.move_id.product_uom_qty or 0.0
+
+
+    def _compute_weighted_average_quality(self):
+        for line in self:
+            if line.lot_id:
+                # Search for the corresponding manufacturing order (MO) using the lot's name
+                mo = self.env['mrp.production'].search([('lot_producing_id.name', '=', line.lot_id.name)], limit=1)
+                # If found, set the weighted average product quality; otherwise, set to 0.0
+                line.weighted_average_quality = mo.weighted_average_pq if mo else 0.0
+            else:
+                line.weighted_average_quality = 0.0

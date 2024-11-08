@@ -6,12 +6,12 @@ class StockLot(models.Model):
     _inherit = "stock.lot"
 
     product_quality = fields.Float(
-        string="Product 1 Quality",
+        string="Product Quality",
         compute="_compute_product_quality",
         store=True
     )
     first_process_wt = fields.Float(
-        string="First 1 Process Weight",
+        string="First Process Weight",
         compute="_compute_first_process_wt",
         store=True
     )

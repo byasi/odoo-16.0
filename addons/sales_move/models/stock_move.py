@@ -74,17 +74,7 @@ class StockMove(models.Model):
             })
         return res
 
-class StockPicking(models.Model):
-    _inherit = 'stock.picking'
 
-    product_quality = fields.Float(string="Product Quality", compute="_compute_quality_and_weight", store=True)
-    first_process_wt = fields.Float(string="First Process Wt", compute="_compute_quality_and_weight", store=True)
-
-    @api.depends('move_ids_without_package.product_quality', 'move_ids_without_package.first_process_wt')
-    def _compute_quality_and_weight(self):
-        for picking in self:
-            picking.product_quality = sum(picking.move_ids_without_package.mapped('product_quality'))
-            picking.first_process_wt = sum(picking.move_ids_without_package.mapped('first_process_wt'))
 
 class StockQuant(models.Model):
     _inherit = "stock.quant"
