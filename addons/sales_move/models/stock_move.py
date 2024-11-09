@@ -100,23 +100,3 @@ class StockQuant(models.Model):
                 })
         return quant
 
-
-
-class ChangeProductionQty(models.TransientModel):
-    _inherit = 'change.production.qty'
-
-    # product_qty = fields.Float(
-    #     string="Product Quantity",
-    #     compute="_compute_product_qty_from_display_quantity",
-    #     store=True,
-    #     readonly=False
-    # )
-
-    # @api.depends('production_id')
-    # def _compute_product_qty_from_display_quantity(self):
-    #     for record in self:
-    #         if record.production_id:
-    #             # Find all Stock Moves linked to this production order
-    #             stock_moves = self.env['stock.move'].search([('production_id', '=', record.production_id.id)])
-    #             # Sum up the display_quantity of all related Stock Moves
-    #             record.product_qty = sum(move.display_quantity for move in stock_moves)
