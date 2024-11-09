@@ -48,7 +48,7 @@ class ChangeProductionQty(models.TransientModel):
     product_qty = fields.Float(
             'Quantity To Produce',
             compute='_compute_product_qty',
-            digits='Product Unit of Measure', required=True,store=True)
+            digits='Product Unit of Measure',store=True)
 
     # overrides the
     @api.depends_context('active_id')
