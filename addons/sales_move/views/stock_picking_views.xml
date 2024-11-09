@@ -22,9 +22,6 @@
                     <field name="average_product_quality"
                            attrs="{'readonly': [('state', 'in', ('done', 'cancel'))]}"
                            context="{'default_picking_id': id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id, 'default_company_id': company_id}" />
-                    <!-- <field name="product_quantity"
-                           attrs="{'readonly': [('state', 'in', ('done', 'cancel'))]}"
-                           context="{'default_picking_id': id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id, 'default_company_id': company_id}" /> -->
                 </xpath>
             </field>
         </record>
