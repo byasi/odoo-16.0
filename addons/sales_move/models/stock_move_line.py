@@ -5,7 +5,7 @@ import math
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"
     weighted_average_quality = fields.Float(
-        string="Weighted Average Product Quality",
+        string="Product Quality",
         compute="_compute_weighted_average_quality",
         store=True
     )
@@ -37,10 +37,12 @@ class StockMoveLine(models.Model):
         for line in self:
             if line.move_id.picking_type_id and line.move_id.picking_type_id.code == 'mrp_operation':
                 line.qty_done = line.mo_first_process_wt or 0.0
-            else:  # Inventory or other modules
+            elif line.move_id.picking_type_id.code == 'outgoing':  # Specific to delivery orders
+                line.qty_done = line.product_quantity or 0.0
+            else:  # For inventory adjustments or other modules
                 line.qty_done = line.move_id.product_uom_qty or 0.0
 
-
+    @api.depends('lot_id')
     def _compute_weighted_average_quality(self):
         for line in self:
             if line.lot_id:
@@ -50,3 +52,20 @@ class StockMoveLine(models.Model):
                 line.weighted_average_quality = mo.weighted_average_pq if mo else 0.0
             else:
                 line.weighted_average_quality = 0.0
+
+    product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_qty")
+    average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_qty")
+
+
+    @api.depends('lot_id')
+    def _compute_product_qty(self):
+      for line in self:
+            if line.lot_id:
+                # Search for the corresponding manufacturing order (MO) using the lot's name
+                mo = self.env['mrp.production'].search([('lot_producing_id.name', '=', line.lot_id.name)], limit=1)
+                # If found, set the weighted average product quality; otherwise, set to 0.0
+                line.product_quantity = mo.display_quantity if mo else 0.0
+                line.average_product_quality = mo.average_product_quality if mo else 0.0
+            else:
+                line.product_quantity = 0.0
+                line.average_product_quality = 0.0
