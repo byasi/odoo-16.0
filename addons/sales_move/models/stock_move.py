@@ -10,6 +10,7 @@ class StockMove(models.Model):
         return rounded_down_value
 
     product_quality = fields.Float(string="Product Quality")
+    actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
     first_process_wt = fields.Float(string="First Process Wt")
     total_weighted_average = fields.Float(
     string="Total Weighted Average",

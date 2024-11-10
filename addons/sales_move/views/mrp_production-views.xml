@@ -6,10 +6,10 @@
             <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
             <field name="arch" type="xml">
                 <xpath expr="//div[@name='bom_div']" position="after">
-                    <label for="weighted_average_pq" />
+                    <!-- <label for="weighted_average_pq" />
                     <div class='o_row' name="fpw_div">
                         <field name="weighted_average_pq" string="Weighted Average Product Quality"/>
-                    </div>
+                    </div> -->
                     <label for="actual_weighted_pq" />
                     <div class='o_row' name="pq_div">
                         <field name="actual_weighted_pq" string="Actual Weighted Product Quality"/>
@@ -20,9 +20,10 @@
                     </div> -->
                 </xpath>
                 <xpath expr="//page[@name='components']//field[@name='product_uom_qty']" position="after">
-                    <field name="total_weighted_average" string="Total Weighted Average" />
+                    <field name="total_weighted_average" string="Total Weighted Average Quality" />
+                    <field name="actual_weighted_pq" string="Manual Weighted Product Quality"/>
                     <!-- <field name="display_quantity" string="Product Quantity" /> -->
-                    <field name="average_lot_product_quality" string="Average Product Quality" />
+                    <!-- <field name="average_lot_product_quality" string="Average Product Quality" /> -->
                     <!-- <field name="average_lot_first_process_wt" string="Average First Process Wt" /> -->
                 </xpath>
             </field>
