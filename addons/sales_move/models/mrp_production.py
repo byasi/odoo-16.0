@@ -45,19 +45,19 @@ class MrpProduction(models.Model):
 class ChangeProductionQty(models.TransientModel):
     _inherit = 'change.production.qty'
 
-    product_qty = fields.Float(
-            'Quantity To Produce',
-            compute='_compute_product_qty',
-            digits='Product Unit of Measure',store=True)
+    # product_qty = fields.Float(
+    #         'Quantity To Produce',
+    #         compute='_compute_product_qty',
+    #         digits='Product Unit of Measure',store=True)
 
-    # overrides the
-    @api.depends_context('active_id')
-    def _compute_product_qty(self):
-        # Access the production order using the active_id from the context
-        for record in self:
-            production_id = self.env.context.get('active_id')
-            if production_id:
-                production = self.env['mrp.production'].browse(production_id)
-                record.product_qty = production.display_quantity
-            else:
-                record.product_qty = 0.0
+    # # overrides the
+    # @api.depends_context('active_id')
+    # def _compute_product_qty(self):
+    #     # Access the production order using the active_id from the context
+    #     for record in self:
+    #         production_id = self.env.context.get('active_id')
+    #         if production_id:
+    #             production = self.env['mrp.production'].browse(production_id)
+    #             record.product_qty = production.display_quantity
+    #         else:
+    #             record.product_qty = 0.0

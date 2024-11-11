@@ -13,14 +13,14 @@ class StockMove(models.Model):
     actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
     first_process_wt = fields.Float(string="First Process Wt")
     total_weighted_average = fields.Float(
-    string="Total Weighted Average",
+    string="Total Weighted Average Quality",
     compute="_compute_total_weighted_average",
     store=True,
     readonly=True
     )
     display_quantity = fields.Float(
     string="Product Quantity",
-    compute="_compute_display_quantity",
+    related="quantity_done",
     store=True,
     readonly=True)
 
@@ -56,14 +56,6 @@ class StockMove(models.Model):
             total_weighted_quality = self.custom_round_down(sum(self.custom_round_down(line.mo_product_quality * line.mo_first_process_wt) for line in move.move_line_ids))
             move.total_weighted_average = self.custom_round_down((total_weighted_quality / move.display_quantity) ) if total_quantity else 0.0
 
-    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.lot_id.product_qty')
-    def _compute_display_quantity(self):
-        for move in self:
-            lot_quantity = 0.0
-            for line in move.move_line_ids:
-                if line.lot_id:
-                    lot_quantity = sum(line.lot_id.product_qty for line in move.move_line_ids)
-            move.display_quantity = lot_quantity
 
     @api.model_create_multi
     def _prepare_stock_moves(self, picking):

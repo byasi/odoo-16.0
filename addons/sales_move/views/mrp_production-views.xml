@@ -10,10 +10,10 @@
                     <div class='o_row' name="fpw_div">
                         <field name="weighted_average_pq" string="Weighted Average Product Quality"/>
                     </div> -->
-                    <label for="actual_weighted_pq" />
+                    <!-- <label for="actual_weighted_pq" />
                     <div class='o_row' name="pq_div">
                         <field name="actual_weighted_pq" string="Actual Weighted Product Quality"/>
-                    </div>
+                    </div> -->
                     <!-- <label for="display_quantity" />
                     <div class='o_row' name="pq_div">
                         <field name="display_quantity" string="Product Quantity"/>

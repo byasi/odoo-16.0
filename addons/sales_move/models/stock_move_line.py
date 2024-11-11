@@ -32,15 +32,16 @@ class StockMoveLine(models.Model):
 
     qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
 
-    @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
+    @api.depends('move_id.product_uom_qty', 'lot_id', 'move_id.picking_type_id')
     def _compute_qty_done(self):
         for line in self:
-            if line.move_id.picking_type_id and line.move_id.picking_type_id.code == 'mrp_operation':
-                line.qty_done = line.mo_first_process_wt or 0.0
-            elif line.move_id.picking_type_id.code == 'outgoing':  # Specific to delivery orders
+            # if line.move_id.picking_type_id.code == 'mrp_operation':
+            #     matching_line = self.search([('lot_id.name', '=', line.lot_id.name)], limit=1)
+            #     line.qty_done = matching_line.lot_first_process_wt or 0.0
+            if line.move_id.picking_type_id.code == 'outgoing':  # Specific to delivery orders
                 line.qty_done = line.product_quantity or 0.0
             else:  # For inventory adjustments or other modules
-                line.qty_done = line.move_id.product_uom_qty or 0.0
+                line.qty_done = line.move_id.product_uom_qty 
 
     @api.depends('lot_id')
     def _compute_weighted_average_quality(self):
@@ -53,8 +54,8 @@ class StockMoveLine(models.Model):
             else:
                 line.weighted_average_quality = 0.0
 
-    product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_qty")
-    average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_qty")
+    product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_qty", store=True)
+    average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_qty", store=True)
 
 
     @api.depends('lot_id')
