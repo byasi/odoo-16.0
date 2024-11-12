@@ -9,9 +9,9 @@ class StockMove(models.Model):
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
-    product_quality = fields.Float(string="Product Quality")
+    product_quality = fields.Float(string="Product Quality", store=True)
     actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
-    first_process_wt = fields.Float(string="First Process Wt")
+    first_process_wt = fields.Float(string="First Process Wt", store=True)
     total_weighted_average = fields.Float(
     string="Total Weighted Average Quality",
     compute="_compute_total_weighted_average",
@@ -20,7 +20,7 @@ class StockMove(models.Model):
     )
     display_quantity = fields.Float(
     string="Product Quantity",
-    related="quantity_done",
+    compute="_compute_display_quantity",
     store=True,
     readonly=True)
 
@@ -42,6 +42,7 @@ class StockMove(models.Model):
         for move in self:
             total_lines = len(move.move_line_ids)
             total_product_quality = self.custom_round_down(sum(line.mo_product_quality for line in move.move_line_ids))
+           
             total_first_process_wt = self.custom_round_down(sum(line.mo_first_process_wt for line in move.move_line_ids))
 
             move.average_lot_product_quality = self.custom_round_down((total_product_quality / total_lines)) if total_lines else 0.0
@@ -51,11 +52,20 @@ class StockMove(models.Model):
     def _compute_total_weighted_average(self):
         for move in self:
             total_quantity =  move.display_quantity
+            
             # total_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
             # NOTE  divide by totalquantity not totalquality
             total_weighted_quality = self.custom_round_down(sum(self.custom_round_down(line.mo_product_quality * line.mo_first_process_wt) for line in move.move_line_ids))
             move.total_weighted_average = self.custom_round_down((total_weighted_quality / move.display_quantity) ) if total_quantity else 0.0
 
+    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_first_process_wt')
+    def _compute_display_quantity(self):
+        for move in self:
+            lot_quantity = 0.0
+            for line in move.move_line_ids:
+                if line.mo_first_process_wt:
+                    lot_quantity = sum(line.mo_first_process_wt for line in move.move_line_ids)
+            move.display_quantity = lot_quantity
 
     @api.model_create_multi
     def _prepare_stock_moves(self, picking):

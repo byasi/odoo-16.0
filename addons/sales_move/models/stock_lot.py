@@ -15,7 +15,7 @@ class StockLot(models.Model):
         compute="_compute_first_process_wt",
         store=True
     )
-
+    # NOTE these are values picked are not correct. wrong logic used
     @api.depends('quant_ids.product_quality', 'quant_ids.location_id.usage')
     def _compute_product_quality(self):
         for lot in self:
