@@ -60,6 +60,7 @@ class StockMoveLine(models.Model):
                 # print(f'QTY_DONE {line.qty_done}')
             elif line.move_id.picking_type_id.code == 'outgoing':
                 line.qty_done = line.product_quantity or 0.0
+                line.reserved_uom_qty = line.qty_done
             else:
                 line.qty_done = line.move_id.product_uom_qty
                 print(f"Product_uom_qty {line.move_id.product_uom_qty}")
