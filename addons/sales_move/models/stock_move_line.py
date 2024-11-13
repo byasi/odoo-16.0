@@ -39,20 +39,22 @@ class StockMoveLine(models.Model):
                     line.mo_first_process_wt = matching_line.lot_first_process_wt
                 else:
                     # If no matching line is found, set to 0.0
-                    line.mo_product_quality = 1.0
-                    line.mo_first_process_wt = 1.0
+                    line.mo_product_quality = 0.0
+                    line.mo_first_process_wt = 0.0
             else:
-                line.mo_product_quality = 1.0
-                line.mo_first_process_wt = 1.0
+                line.mo_product_quality = 0.0
+                line.mo_first_process_wt = 0.0
 
 
     qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
 
     @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
     def _compute_qty_done(self):
+        if self.env.context.get('skip_fetch_lot_values'):
+            return
         for line in self:
             if line.move_id.picking_type_id and line.move_id.picking_type_id.code == 'mrp_operation':
-                line.qty_done = line.mo_first_process_wt or 1.0
+                line.qty_done = line.mo_first_process_wt or 0.0
                 print(f'Mo_process_wt {line.mo_first_process_wt}')
                 print(f'Product Quality {line.mo_product_quality}')
                 print(f'QTY_DONE {line.qty_done}')
