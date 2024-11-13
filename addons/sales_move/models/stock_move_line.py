@@ -55,9 +55,9 @@ class StockMoveLine(models.Model):
         for line in self:
             if line.move_id.picking_type_id and line.move_id.picking_type_id.code == 'mrp_operation':
                 line.qty_done = line.mo_first_process_wt or 0.0
-                print(f'Mo_process_wt {line.mo_first_process_wt}')
-                print(f'Product Quality {line.mo_product_quality}')
-                print(f'QTY_DONE {line.qty_done}')
+                # print(f'Mo_process_wt {line.mo_first_process_wt}')
+                # print(f'Product Quality {line.mo_product_quality}')
+                # print(f'QTY_DONE {line.qty_done}')
             elif line.move_id.picking_type_id.code == 'outgoing':
                 line.qty_done = line.product_quantity or 0.0
             else:
