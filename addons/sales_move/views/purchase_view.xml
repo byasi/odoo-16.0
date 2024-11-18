@@ -91,20 +91,20 @@
                                 <field name="amount_tax" string="Tax" readonly="1"/>
                             </td>
                         </tr>
-                        <tr>
+                        <!-- <tr>
                             <td class="o_td_label" style="padding-right: 20px;">
                                 <span class="o_form_label o_tax_total_label">Deduction Currency</span>
                             </td>
                             <td class="o_list_monetary">
                                 <field name="deduction_currency" string="Deduction Currency"/>
                             </td>
-                        </tr>
+                        </tr> -->
                         <tr>
                             <td class="o_td_label" style="padding-right: 20px;">
                                 <span class="o_form_label o_tax_total_label">Deductions</span>
                             </td>
                             <td class="o_list_monetary">
-                                <field name="deductions" string="Deductions"/>
+                                <field name="deductions" string="Deductions" readonly="1"/>
                             </td>
                         </tr>
 

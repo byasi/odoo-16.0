@@ -9,13 +9,8 @@ _logger = logging.getLogger(__name__)
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     currency_id = fields.Many2one('res.currency', string="Currency", invisible=True)
-    lot_no = fields.Integer(string="Lot No")
-    # gross_weight = fields.Float(string="Gross Weight")
-    # first_process_wt = fields.Float(string="First Process Wt")
-    # second_process_wt = fields.Float(string="Second Process Wt")
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
     product_price = fields.Monetary(string="Product Price")
-    # tax = fields.Float(string="Tax")
     deduction_head = fields.Float(string="Deduction Head")
     additions = fields.Float(string="Additions")
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
@@ -33,11 +28,7 @@ class PurchaseOrder(models.Model):
     unit_convention = fields.Many2one('uom.uom',string="Unit Convention")
     x_factor = fields.Float(string="Xfactor", default=92)
     net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total", store=True)
-    deductions = fields.Monetary(string="Deductions",currency_field='deduction_currency')
-    deduction_currency = fields.Many2one('res.currency',string="Deduction Currency")
-    round = fields.Float(string="Round")
-    # payment = fields.Monetary(string="Payment", currency_field='transaction_currency', compute="_compute_payment", store=True)
-    # convention_market_unit = fields.Float(string="Convertion Market Unit")
+    deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency', related="total_deductions")
     company_currency_id = fields.Many2one(
         'res.currency', related='company_id.currency_id', readonly=True, string="Company Currency"
     )
@@ -78,25 +69,12 @@ class PurchaseOrder(models.Model):
                 order.transaction_price_per_unit = 0.0
 
 
-    @api.depends('order_line.amount', 'deductions', 'deduction_currency', 'transaction_currency')
+    @api.depends('order_line.amount', 'deductions', 'transaction_currency')
     def _compute_net_total(self):
         for order in self:
             total = sum(line.amount for line in order.order_line)
-
-            # Check if deductions and deduction_currency are defined
-            if order.deductions and order.deduction_currency:
-                # Convert deductions to transaction currency
-                deduction_converted = order.deduction_currency._convert(
-                    order.deductions,
-                    order.transaction_currency,
-                    order.company_id,
-                    order.date_order or fields.Date.today()
-                )
-            else:
-                deduction_converted = 0.0
-
             # Calculate the net total after deducting the converted deduction value
-            net_total = total - deduction_converted
+            net_total = total + order.deductions
             order.net_total = self.custom_round_down(net_total)
 
 
@@ -156,14 +134,14 @@ class PurchaseOrder(models.Model):
     amount_tax = fields.Monetary(string='Taxes', store=True, readonly=True, compute='_amount_all')
     amount_total = fields.Monetary(string='Total', store=True, readonly=True, compute='_amount_all')
 
-    @api.depends('order_line.price_total', 'deductions', 'deduction_currency', 'transaction_currency')
+    @api.depends('order_line.price_total', 'deductions', 'transaction_currency')
     def _amount_all(self):
         for order in self:
             order_lines = order.order_line.filtered(lambda x: not x.display_type)
             amount_untaxed = sum(order_lines.mapped('amount'))
             amount_tax = sum(order_lines.mapped('price_tax'))
 
-            # Convert amount_untaxed to transaction currency
+            # Convert amounts to transaction currency
             order.amount_untaxed = self.custom_round_down(
                 order.currency_id._convert(
                     amount_untaxed,
@@ -172,8 +150,6 @@ class PurchaseOrder(models.Model):
                     order.date_order or fields.Date.today()
                 )
             )
-
-            # Convert amount_tax to transaction currency
             order.amount_tax = self.custom_round_down(
                 order.currency_id._convert(
                     amount_tax,
@@ -183,19 +159,10 @@ class PurchaseOrder(models.Model):
                 )
             )
 
-            # Convert deductions to transaction currency if deduction currency is defined
-            if order.deductions and order.deduction_currency:
-                deduction_converted = order.deduction_currency._convert(
-                    order.deductions,
-                    order.transaction_currency,
-                    order.company_id,
-                    order.date_order or fields.Date.today()
-                )
-            else:
-                deduction_converted = 0.0
+            print(f"Deds {order.deductions}")
+            total = (order.amount_untaxed + order.amount_tax) + order.deductions
+            order.amount_total = self.custom_round_down(total)
 
-            # Calculate amount_total by applying the converted deduction value
-            order.amount_total = self.custom_round_down(order.amount_untaxed + order.amount_tax - deduction_converted)
 
 
 # deductions tab here
@@ -217,11 +184,8 @@ class PurchaseOrderLine(models.Model):
     gross_weight = fields.Float(string="Gross Weight")
     first_process_wt = fields.Float(string="First Process Wt")
     price = fields.Monetary(string="Market Price")
-    # product_price = fields.Monetary(string="Product Price")
-    # tax = fields.Float(string="Tax")
     second_process_wt = fields.Float(string="Second Process Wt")
     process_loss = fields.Float(string="Process Loss", compute="_compute_process_loss", store=True)
-    # lot_no = fields.Integer(string="Lot No")
     item_code = fields.Char(string="item code")
     rate = fields.Float(string="Rate", compute="_compute_rate", store=True)
     original_rate = fields.Float(string='Original Rate', compute="_compute_original_rate", store=True)
@@ -230,24 +194,6 @@ class PurchaseOrderLine(models.Model):
     uom = fields.Char(string="UOM")
     amount = fields.Monetary(string="Amount", compute="_comput_amount", store=True)
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
-
-    # @api.model
-    # def add_single_product(self, product_id, order_id):
-    #     # Fetch the purchase order and product by their IDs
-    #     order = self.env['purchase.order'].browse(order_id)
-    #     product = self.env['product.product'].browse(product_id)
-
-    #     # Create a new order line for the purchase order with the given product
-    #     order_line = self.env['purchase.order.line'].create({
-    #         'order_id': order.id,
-    #         'product_id': product.id,
-    #         'product_qty': 1,  # You can set a default quantity here if needed
-    #         'price_unit': product.standard_price,  # Example to use the product's standard price
-    #         # Add any other fields as required
-    #     })
-
-    #     return order_line.id
-
 
     def custom_round_down(self, value):
         scaled_value = value * 100
@@ -448,44 +394,6 @@ class PurchaseOrderLine(models.Model):
                 'price_tax': amount_tax,
                 'price_total': amount_untaxed + amount_tax,
             })
-    @api.depends('order_line.price_total', 'deductions', 'deduction_currency', 'transaction_currency')
-    def _amount_all(self):
-        for order in self:
-            # Filter out display-only order lines
-            order_lines = order.order_line.filtered(lambda x: not x.display_type)
-
-            # Sum the custom 'amount' (my custom price_subtotal) and 'price_tax' fields
-            amount_untaxed = sum(order_lines.mapped('amount'))  # Using the custom `amount` field
-            amount_tax = sum(order_lines.mapped('price_tax'))  # Odoo's tax calculation
-
-            # Ensure all calculations are done in the transaction currency
-            order.amount_untaxed = self.custom_round_down(order.currency_id._convert(
-                amount_untaxed,
-                order.transaction_currency,
-                order.company_id,
-                order.date_order or fields.Date.today()
-            ))
-            order.amount_tax = self.custom_round_down(order.currency_id._convert(
-                amount_tax,
-                order.transaction_currency,
-                order.company_id,
-                order.date_order or fields.Date.today()
-            ))
-
-            # Convert deductions to transaction currency if deduction currency is defined
-            if order.deductions and order.deduction_currency:
-                deduction_converted = order.deduction_currency._convert(
-                    order.deductions,
-                    order.transaction_currency,
-                    order.company_id,
-                    order.date_order or fields.Date.today()
-                )
-            else:
-                deduction_converted = 0.0
-
-            # Total is the sum of untaxed and tax amounts, both in the transaction currency
-            amount_total = (order.amount_untaxed + order.amount_tax) - deduction_converted
-            order.amount_total = self.custom_round_down(amount_total)
 
 
 class PurchaseOrderDeductions(models.Model):

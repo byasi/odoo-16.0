@@ -35,6 +35,6 @@ class StockPicking(models.Model):
             lot_number = picking.move_line_ids.filtered(lambda line: line.lot_id).mapped('lot_id.name')
             if lot_number:
                 mo = self.env['mrp.production'].search([('lot_producing_id.name', '=', lot_number[0])], limit=1)
-                picking.product_quantity = mo.display_quantity if mo else 0.0
+                picking.product_quantity = mo.product_qty if mo else 0.0
             else:
                 picking.product_quantity = 0.0
