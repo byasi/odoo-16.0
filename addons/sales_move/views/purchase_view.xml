@@ -66,19 +66,19 @@
                 </xpath> -->
 
                 <xpath expr="//field[@name='product_qty']" position="after">
-                    <field name="original_qty_g" string="Original Qty" optional="show"/>
+                    <field name="original_qty_g" string="Original Qty" optional="hide"/>
                     <field name="gross_weight" string="Gross Weight" optional="show"/>
                     <field name="first_process_wt" string="First Process Weight" optional="show"/>
-                    <field name="manual_first_process" string="Manual FP" optional="show"/>
+                    <field name="manual_first_process" string="Manual FP" optional="hide"/>
                     <field name="second_process_wt" string="Second Process Weight" optional="show"/>
                     <field name="product_quality" string="Product Quality" optional="show"/>
-                    <field name="manual_product_quality" string="Manual PQ" optional="show"/>
-                    <field name="original_product_quality" string="Original PQ" optional="show"/>
-                    <field name="product_quality_difference" string="PQ difference" optional="show"/>
+                    <field name="manual_product_quality" string="Manual PQ" optional="hide"/>
+                    <field name="original_product_quality" string="Original PQ" optional="hide"/>
+                    <field name="product_quality_difference" string="PQ difference" optional="hide"/>
                     <field name="process_loss"/>
-                    <field name="original_rate" string="Original Price" optional="show"/>
-                    <field name="rate" string="Rate" optional="show"/>
-                    <field name="original_amount" string="Original Amount" optional="show"/>
+                    <field name="original_rate" string="Original Price" optional="hide"/>
+                    <field name="rate" string="Rate" optional="hide"/>
+                    <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
             <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
                 <table class="oe_right">
