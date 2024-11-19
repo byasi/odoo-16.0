@@ -82,7 +82,7 @@ class StockMoveLine(models.Model):
         for line in self:
             if line.lot_id:
                 mo = self.env['mrp.production'].search([('lot_producing_id.name', '=', line.lot_id.name)], limit=1)
-                line.product_quantity = mo.display_quantity if mo else 0.0
+                line.product_quantity = mo.product_qty if mo else 0.0
                 line.average_product_quality = mo.weighted_average_pq if mo else 0.0
             else:
                 line.product_quantity = 0.0
