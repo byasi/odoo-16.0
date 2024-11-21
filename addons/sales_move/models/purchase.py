@@ -267,8 +267,11 @@ class PurchaseOrderLine(models.Model):
     @api.depends('first_process_wt', 'price_subtotal')
     def _compute_transfer_rate(self):
         for line in self:
-            transfer_rate = line.price_subtotal / line.first_process_wt
-            line.transfer_rate = self.custom_round_down(transfer_rate)
+            if line.first_process_wt and line.price_subtotal:
+                transfer_rate = line.price_subtotal / line.first_process_wt
+                line.transfer_rate = self.custom_round_down(transfer_rate)
+            else:
+                line.transfer_rate = 0.0
 
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
     manual_product_quality = fields.Float(string="Manual PQ", store=True)
