@@ -78,6 +78,7 @@
                     <field name="process_loss"/>
                     <field name="original_rate" string="Original Price" optional="hide"/>
                     <field name="rate" string="Rate" optional="hide"/>
+                    <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
             <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">

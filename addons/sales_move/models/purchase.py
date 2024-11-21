@@ -194,6 +194,20 @@ class PurchaseOrderLine(models.Model):
     uom = fields.Char(string="UOM")
     amount = fields.Monetary(string="Amount", compute="_comput_amount", store=True)
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
+    transfer_rate = fields.Monetary(string="Transfer Rate",  compute="_compute_transfer_rate", store=True)
+
+    @api.model
+    def _prepare_account_move_line(self, move=False):
+        """Prepare the values for the creation of account.move.line."""
+        res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
+        unrounded_transfer_rate = self.price_subtotal / self.first_process_wt
+        subTotal =  self.first_process_wt * unrounded_transfer_rate
+        # Update price_unit to match transfer_rate
+        res.update({
+            'price_unit': self.transfer_rate,
+            'price_subtotal': self.price_subtotal
+        })
+        return res
 
     def custom_round_down(self, value):
         scaled_value = value * 100
@@ -250,7 +264,11 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.original_qty_g = 0.0
 
-
+    @api.depends('first_process_wt', 'price_subtotal')
+    def _compute_transfer_rate(self):
+        for line in self:
+            transfer_rate = line.price_subtotal / line.first_process_wt
+            line.transfer_rate = self.custom_round_down(transfer_rate)
 
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
     manual_product_quality = fields.Float(string="Manual PQ", store=True)
