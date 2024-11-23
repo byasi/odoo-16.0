@@ -159,7 +159,6 @@ class PurchaseOrder(models.Model):
                 )
             )
 
-            print(f"Deds {order.deductions}")
             total = (order.amount_untaxed + order.amount_tax) + order.deductions
             order.amount_total = self.custom_round_down(total)
 
@@ -205,7 +204,8 @@ class PurchaseOrderLine(models.Model):
         # Update price_unit to match transfer_rate
         res.update({
             'price_unit': self.transfer_rate,
-            'price_subtotal': self.price_subtotal
+            'subtotal': subTotal,
+            'unrounded_transfer_rate': unrounded_transfer_rate
         })
         return res
 
@@ -269,7 +269,8 @@ class PurchaseOrderLine(models.Model):
         for line in self:
             if line.first_process_wt and line.price_subtotal:
                 transfer_rate = line.price_subtotal / line.first_process_wt
-                line.transfer_rate = self.custom_round_down(transfer_rate)
+                # line.transfer_rate = self.custom_round_down(transfer_rate)
+                line.transfer_rate = transfer_rate
             else:
                 line.transfer_rate = 0.0
 
@@ -450,3 +451,39 @@ class PurchaseOrderDeductions(models.Model):
                     record.transaction_currency_amount = converted_amount
             else:
                 record.transaction_currency_amount = 0.0
+
+class AccountMoveLine(models.Model):
+    _inherit = "account.move.line"
+    subtotal = fields.Float(string="Subtotal From Purchase", store=True)
+    unrounded_transfer_rate = fields.Float(string="Unrounded Price unit", store=True)
+    price_total = fields.Monetary(
+        string='Total',
+        compute='_compute_totals', store=True,
+        currency_field='currency_id',
+    )
+
+    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate')
+    def _compute_totals(self):
+        for line in self:
+            if line.display_type != 'product':
+                line.price_total = line.price_subtotal = False
+            # Compute 'price_subtotal'.
+            print(f"Unrounded {line.unrounded_transfer_rate}")
+            line_discount_price_unit = line.unrounded_transfer_rate * (1 - (line.discount / 100.0))
+            subtotal = line.subtotal
+
+            # Compute 'price_total'.
+            if line.tax_ids:
+                taxes_res = line.tax_ids.compute_all(
+                    line_discount_price_unit,
+                    quantity=line.quantity,
+                    currency=line.currency_id,
+                    product=line.product_id,
+                    partner=line.partner_id,
+                    is_refund=line.is_refund,
+                )
+                line.price_subtotal = taxes_res['total_excluded']
+                line.price_total = taxes_res['total_included']
+            else:
+                line.price_subtotal = line_discount_price_unit * line.quantity
+                line.price_total = line.price_subtotal
