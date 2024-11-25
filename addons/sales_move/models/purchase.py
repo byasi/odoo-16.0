@@ -92,6 +92,8 @@ class PurchaseOrder(models.Model):
     formula = fields.Selection(
         selection='_compute_formula_selection',
         string='Formula',
+        default='method_1',
+        readonly=True
     )
     convention_market_unit = fields.Float(
     string="Conversion Market Unit",

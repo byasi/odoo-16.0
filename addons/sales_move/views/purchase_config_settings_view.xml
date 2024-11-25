@@ -22,18 +22,6 @@
                                         <div class="col-md-9">
                                             <field name="method_1" widget="textarea"/>
                                         </div>
-                                        <label class="col-md-3 o_light_label" for="method_2" string="Method two"/>
-                                        <div class="col-md-9">
-                                             <field name="method_2" widget="textarea"/>
-                                        </div>
-                                    </div>
-                                    <div class="row mt16">
-                                    <label class="col-md-3 o_light_label" for="method_3" string="Method three"/>
-                                        <div class="col-md-9">
-                                             <field name="method_3" widget="textarea"/>
-                                        </div>
-                                    </div>
-                                    <div class="row mt16">
                                     </div>
                                 </div>
                             </div>

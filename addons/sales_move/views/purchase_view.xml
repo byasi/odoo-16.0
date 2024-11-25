@@ -46,7 +46,7 @@
                     <!-- <field name="gross_weight" string="Gross Weight"/> -->
                      <!-- <field name="first_process_wt" string="First Process Weight" /> -->
                     <!-- <field name="second_process_wt" string="Second Process Weight"/> -->
-                    <field name="formula" string="Formula" />
+                    <field name="formula" string="Formula" invisible="1" />
                 </xpath>
 
                 <xpath expr="//div[@name='reminder']" position="after">
