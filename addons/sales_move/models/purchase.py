@@ -456,8 +456,9 @@ class PurchaseOrderDeductions(models.Model):
 
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
+
     subtotal = fields.Float(string="Subtotal From Purchase", store=True)
-    unrounded_transfer_rate = fields.Float(string="Unrounded Price unit", store=True)
+    unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
     price_total = fields.Monetary(
         string='Total',
         compute='_compute_totals', store=True,
@@ -469,12 +470,15 @@ class AccountMoveLine(models.Model):
         for line in self:
             if line.display_type != 'product':
                 line.price_total = line.price_subtotal = False
-            # Compute 'price_subtotal'.
-            print(f"Unrounded {line.unrounded_transfer_rate}")
-            line_discount_price_unit = line.unrounded_transfer_rate * (1 - (line.discount / 100.0))
-            subtotal = line.subtotal
+                continue
+            # Determine the source of the line and compute line_discount_price_unit accordingly
+            if line.move_id.is_purchase_document(include_receipts=True):  # Assuming a purchase_id field links this line to a purchase
+                line_discount_price_unit = line.unrounded_transfer_rate * (1 - (line.discount / 100.0))
+            else:
+                line_discount_price_unit = line.price_unit * (1 - (line.discount / 100.0))
 
-            # Compute 'price_total'.
+            subtotal = line.quantity * line_discount_price_unit
+            # Compute 'price_subtotal' and 'price_total'.
             if line.tax_ids:
                 taxes_res = line.tax_ids.compute_all(
                     line_discount_price_unit,
@@ -487,5 +491,5 @@ class AccountMoveLine(models.Model):
                 line.price_subtotal = taxes_res['total_excluded']
                 line.price_total = taxes_res['total_included']
             else:
-                line.price_subtotal = line_discount_price_unit * line.quantity
-                line.price_total = line.price_subtotal
+                line.price_total = line.price_subtotal = subtotal
+
