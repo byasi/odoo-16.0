@@ -240,21 +240,18 @@ class PurchaseOrderLine(models.Model):
         readonly=False,  # Ensure it is writable if needed
     )
 
-    @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit', 'manual_first_process')
+    @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit')
     def _compute_qty_g(self):
         for line in self:
             if line.order_id.material_unit_input and line.order_id.transaction_unit:
                 unit_input_rate = line.order_id.material_unit_input.ratio
                 transaction_unit_rate = line.order_id.transaction_unit.ratio
-                if line.manual_first_process:
-                    qty_g = (unit_input_rate / transaction_unit_rate) * line.manual_first_process
-                else:
-                    qty_g = (unit_input_rate / transaction_unit_rate) * line.first_process_wt
+                qty_g = (unit_input_rate / transaction_unit_rate) * line.first_process_wt
 
                 line.qty_g = self.custom_round_down(qty_g)
             else:
                 line.qty_g = 0.0
-    @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit', 'manual_first_process')
+    @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit')
     def _compute_original_qty_g(self):
         for line in self:
             if line.order_id.material_unit_input and line.order_id.transaction_unit:
@@ -301,12 +298,9 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.product_quality_difference = 0.0
 
-    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight', 'manual_product_quality')
+    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight',)
     def _compute_product_quality(self):
         for line in self:
-            if line.manual_product_quality:  # Use manually input value if available
-                line.product_quality = line.manual_product_quality
-            elif line.formula:  # Fallback to computed formula if no manual input
                 try:
                     local_variables = {
                         'first_process_wt': line.first_process_wt,
@@ -322,10 +316,8 @@ class PurchaseOrderLine(models.Model):
                         line.product_quality = 0.0
                 except Exception:
                     line.product_quality = 0.0
-            else:
-                line.product_quality = 0.0
 
-    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight', 'manual_product_quality')
+    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight')
     def _compute_original_product_quality(self):
         for line in self:
             try:
