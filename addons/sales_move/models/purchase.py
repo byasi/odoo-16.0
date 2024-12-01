@@ -195,7 +195,7 @@ class PurchaseOrderLine(models.Model):
     uom = fields.Char(string="UOM")
     amount = fields.Monetary(string="Amount", compute="_comput_amount", store=True)
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
-    transfer_rate = fields.Monetary(string="Transfer Rate",  compute="_compute_transfer_rate", store=True)
+    transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
 
     @api.model
     def _prepare_account_move_line(self, move=False):
@@ -205,7 +205,7 @@ class PurchaseOrderLine(models.Model):
         subTotal =  self.first_process_wt * unrounded_transfer_rate
         # Update price_unit to match transfer_rate
         res.update({
-            'price_unit': self.transfer_rate,
+            'price_unit': unrounded_transfer_rate,
             'subtotal': subTotal,
             'unrounded_transfer_rate': unrounded_transfer_rate
         })
@@ -449,6 +449,7 @@ class PurchaseOrderDeductions(models.Model):
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
+    price_unit = fields.Float(string="Price", digits=(16, 4), store=True)
     subtotal = fields.Float(string="Subtotal From Purchase", store=True)
     unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
     price_total = fields.Monetary(
