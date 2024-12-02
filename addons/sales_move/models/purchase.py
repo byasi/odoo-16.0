@@ -201,8 +201,9 @@ class PurchaseOrderLine(models.Model):
     def _prepare_account_move_line(self, move=False):
         """Prepare the values for the creation of account.move.line."""
         res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
-        unrounded_transfer_rate = self.price_subtotal / self.first_process_wt
-        subTotal =  self.first_process_wt * unrounded_transfer_rate
+        effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
+        unrounded_transfer_rate = self.price_subtotal / effective_process_wt
+        subTotal =  effective_process_wt * unrounded_transfer_rate
         # Update price_unit to match transfer_rate
         res.update({
             'price_unit': unrounded_transfer_rate,
@@ -216,14 +217,22 @@ class PurchaseOrderLine(models.Model):
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
-    @api.depends('qty_g', 'product_quality','order_id.transaction_price_per_unit', 'order_id.x_factor')
+    @api.depends('qty_g', 'product_quality', 'manual_product_quality', 'order_id.transaction_price_per_unit', 'order_id.x_factor')
     def _comput_amount(self):
         for line in self:
-            if line.qty_g and line.product_quality:
-                amount = (line.qty_g * line.product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
-                line.amount = self.custom_round_down(amount)
+            # Use manual_product_quality if provided; otherwise, fallback to product_quality
+            effective_product_quality = line.manual_product_quality if line.manual_product_quality else line.product_quality
+
+            if line.qty_g and effective_product_quality and line.order_id.transaction_price_per_unit and line.order_id.x_factor:
+                try:
+                    # Calculate amount and round down the result
+                    amount = (line.qty_g * effective_product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
+                    line.amount = self.custom_round_down(amount)
+                except ZeroDivisionError:
+                    line.amount = 0.0
             else:
                 line.amount = 0.0
+
 
     @api.depends('qty_g', 'original_product_quality','order_id.transaction_price_per_unit', 'order_id.x_factor')
     def _comput_original_amount(self):
@@ -240,17 +249,25 @@ class PurchaseOrderLine(models.Model):
         readonly=False,  # Ensure it is writable if needed
     )
 
-    @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit')
+    @api.depends('first_process_wt', 'manual_first_process', 'order_id.material_unit_input', 'order_id.transaction_unit')
     def _compute_qty_g(self):
         for line in self:
-            if line.order_id.material_unit_input and line.order_id.transaction_unit:
-                unit_input_rate = line.order_id.material_unit_input.ratio
-                transaction_unit_rate = line.order_id.transaction_unit.ratio
-                qty_g = (unit_input_rate / transaction_unit_rate) * line.first_process_wt
+            # Use manual_first_process if provided; otherwise, fallback to first_process_wt
+            effective_process_wt = line.manual_first_process if line.manual_first_process else line.first_process_wt
 
-                line.qty_g = self.custom_round_down(qty_g)
+            if line.order_id.material_unit_input and line.order_id.transaction_unit and effective_process_wt:
+                try:
+                    unit_input_rate = line.order_id.material_unit_input.ratio
+                    transaction_unit_rate = line.order_id.transaction_unit.ratio
+                    qty_g = (unit_input_rate / transaction_unit_rate) * effective_process_wt
+
+                    # Round down the computed qty_g
+                    line.qty_g = self.custom_round_down(qty_g)
+                except ZeroDivisionError:
+                    line.qty_g = 0.0
             else:
                 line.qty_g = 0.0
+
     @api.depends('first_process_wt', 'order_id.material_unit_input', 'order_id.transaction_unit')
     def _compute_original_qty_g(self):
         for line in self:
@@ -263,19 +280,27 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.original_qty_g = 0.0
 
-    @api.depends('first_process_wt', 'price_subtotal')
+    @api.depends('first_process_wt', 'manual_first_process', 'price_subtotal')
     def _compute_transfer_rate(self):
         for line in self:
-            if line.first_process_wt and line.price_subtotal:
-                transfer_rate = line.price_subtotal / line.first_process_wt
-                # line.transfer_rate = self.custom_round_down(transfer_rate)
-                line.transfer_rate = transfer_rate
+            # Use manual_first_process if provided; otherwise, fallback to first_process_wt
+            effective_process_wt = line.manual_first_process if line.manual_first_process else line.first_process_wt
+
+            if effective_process_wt and line.price_subtotal:
+                try:
+                    transfer_rate = line.price_subtotal / effective_process_wt
+                    # Assign the computed transfer_rate, rounded down if necessary
+                    # line.transfer_rate = self.custom_round_down(transfer_rate)
+                    line.transfer_rate = transfer_rate
+                except ZeroDivisionError:
+                    line.transfer_rate = 0.0
             else:
                 line.transfer_rate = 0.0
 
+
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
-    manual_product_quality = fields.Float(string="Manual PQ", store=True)
-    manual_first_process = fields.Float(string="Manua FP", store=True)
+    manual_product_quality = fields.Float(string="Manual Product Quality", store=True)
+    manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
     original_product_quality = fields.Float(string="Original Product Quality", compute="_compute_original_product_quality", readonly=True)
     product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference", readonly=True)
 
@@ -347,18 +372,22 @@ class PurchaseOrderLine(models.Model):
                 record.process_loss = 0.0
 
 
-    @api.depends('order_id.transaction_price_per_unit', 'order_id.x_factor', 'product_quality')
+    @api.depends('order_id.transaction_price_per_unit', 'order_id.x_factor', 'product_quality', 'manual_product_quality')
     def _compute_rate(self):
         for line in self:
-            if line.order_id.transaction_price_per_unit and line.order_id.x_factor and line.product_quality:
+            # Use manual_product_quality if provided; otherwise, fallback to product_quality
+            effective_product_quality = line.manual_product_quality if line.manual_product_quality else line.product_quality
+            print(f"Effective {effective_product_quality}")
+            if line.order_id.transaction_price_per_unit and line.order_id.x_factor and effective_product_quality:
                 try:
                     # Calculate rate and round down the result
-                    rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * line.product_quality
+                    rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * effective_product_quality
                     line.rate = self.custom_round_down(rate)
                 except ZeroDivisionError:
                     line.rate = 0.0
             else:
                 line.rate = 0.0
+
     @api.depends('order_id.transaction_price_per_unit', 'order_id.x_factor', 'original_product_quality')
     def _compute_original_rate(self):
         for line in self:

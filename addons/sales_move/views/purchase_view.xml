@@ -60,23 +60,20 @@
                      <!-- <field name="selected_product_id" string="Select Product"/> -->
                 </xpath>
 
-                <!-- <xpath expr="//field[@name='product_id']" position="before">
-                    <field name="lot_no" string="Lot No" optional="show"/>
-                     <field name="item_code" string="Item Code"/>
-                </xpath> -->
-
-                <xpath expr="//field[@name='product_qty']" position="after">
+                <xpath expr="//field[@name='product_qty']" position="before">
                     <field name="original_qty_g" string="Original Qty" optional="hide"/>
                     <field name="gross_weight" string="Gross Weight" optional="show"/>
-                    <field name="first_process_wt" string="First Process Weight" optional="show"/>
-                    <field name="manual_first_process" string="Manual FP" optional="hide"/>
+                    <field name="first_process_wt" string="Actual Process Weight" optional="show"/>
+                    <field name="manual_first_process" string="Manual First Process Weight" optional="hide"/>
                     <field name="second_process_wt" string="Second Process Weight" optional="show"/>
-                    <field name="product_quality" string="Product Quality" optional="show"/>
-                    <field name="manual_product_quality" string="Manual PQ" optional="hide"/>
-                    <field name="original_product_quality" string="Original PQ" optional="hide"/>
+                    <field name="product_quality" string="Actual Product Quality" optional="show"/>
+                    <field name="manual_product_quality" string="Manual Product Quality" optional="hide"/>
+                    <field name="original_product_quality" string="Original Product Quality" optional="hide"/>
                     <field name="product_quality_difference" string="PQ difference" optional="hide"/>
                     <field name="process_loss"/>
-                    <field name="original_rate" string="Original Price" optional="hide"/>
+                </xpath>
+                 <xpath expr="//field[@name='product_qty']" position="after">
+                  <field name="original_rate" string="Original Price" optional="hide"/>
                     <field name="rate" string="Rate" optional="hide"/>
                     <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
