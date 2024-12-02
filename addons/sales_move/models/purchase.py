@@ -208,7 +208,8 @@ class PurchaseOrderLine(models.Model):
         res.update({
             'price_unit': unrounded_transfer_rate,
             'subtotal': subTotal,
-            'unrounded_transfer_rate': unrounded_transfer_rate
+            'unrounded_transfer_rate': unrounded_transfer_rate,
+            'manual_quantity': self.manual_first_process
         })
         return res
 
@@ -481,30 +482,36 @@ class AccountMoveLine(models.Model):
     price_unit = fields.Float(string="Price", digits=(16, 4), store=True)
     subtotal = fields.Float(string="Subtotal From Purchase", store=True)
     unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
+    manual_quantity = fields.Float(string="Quantity", store=True)
     price_total = fields.Monetary(
         string='Total',
         compute='_compute_totals', store=True,
         currency_field='currency_id',
     )
 
-    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate')
+    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate', 'manual_quantity')
     def _compute_totals(self):
         for line in self:
             if line.display_type != 'product':
                 line.price_total = line.price_subtotal = False
                 continue
+
             # Determine the source of the line and compute line_discount_price_unit accordingly
-            if line.move_id.is_purchase_document(include_receipts=True):  # Assuming a purchase_id field links this line to a purchase
+            if line.move_id.is_purchase_document(include_receipts=True):
+                effective_quantity = line.manual_quantity if line.manual_quantity else line.quantity
                 line_discount_price_unit = line.unrounded_transfer_rate * (1 - (line.discount / 100.0))
             else:
+                effective_quantity = line.quantity
                 line_discount_price_unit = line.price_unit * (1 - (line.discount / 100.0))
 
-            subtotal = line.quantity * line_discount_price_unit
-            # Compute 'price_subtotal' and 'price_total'.
+            # Calculate the subtotal based on the effective quantity
+            subtotal = effective_quantity * line_discount_price_unit
+
+            # Compute 'price_subtotal' and 'price_total'
             if line.tax_ids:
                 taxes_res = line.tax_ids.compute_all(
                     line_discount_price_unit,
-                    quantity=line.quantity,
+                    quantity=effective_quantity,
                     currency=line.currency_id,
                     product=line.product_id,
                     partner=line.partner_id,
@@ -514,4 +521,3 @@ class AccountMoveLine(models.Model):
                 line.price_total = taxes_res['total_included']
             else:
                 line.price_total = line.price_subtotal = subtotal
-
