@@ -11,3 +11,9 @@ class AccountPaymentRegister(models.TransientModel):
             'view_mode': 'tree,form',
             'target': 'current',
         }
+
+class CurrencyRate(models.Model):
+    _inherit = "res.currency.rate"
+
+    name = fields.Datetime(string='Date', required=True, index=True,
+        default=fields.Datetime.now)
