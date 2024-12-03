@@ -1,0 +1,26 @@
+<odoo>
+    <data>
+        <!-- Inherit the existing view -->
+        <record id="view_account_payment_register_form_inherited" model="ir.ui.view">
+            <field name="name">account.payment.register.form.inherited</field>
+            <field name="model">account.payment.register</field>
+            <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_create_payments']" position="after">
+                       <button type="object"
+                                name="open_currency"
+                                string="Open Currency"
+                                icon="fa-external-link"
+                                class="btn-primary"/>
+                </xpath>
+            </field>
+        </record>
+          <record id="action_open_currency_form" model="ir.actions.act_window">
+            <field name="name">Currency</field>
+            <field name="res_model">res.currency</field>
+            <field name="view_mode">tree,form</field>
+            <!-- <field name="view_type">form</field> -->
+            <field name="target">current</field>
+        </record>
+    </data>
+</odoo>

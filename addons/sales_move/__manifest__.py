@@ -20,6 +20,7 @@
         'views/stock_move_views.xml',
         'views/stock_lot_views.xml',
         'views/stock_move_line_views.xml',
+        'views/account_payment_register_views.xml',
     ],
     'license': 'LGPL-3',
     'images': ['static/description/banner.png'],
