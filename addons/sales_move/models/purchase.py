@@ -140,7 +140,7 @@ class PurchaseOrder(models.Model):
     def _amount_all(self):
         for order in self:
             order_lines = order.order_line.filtered(lambda x: not x.display_type)
-            amount_untaxed = sum(order_lines.mapped('amount'))
+            amount_untaxed = sum(order_lines.mapped('price_subtotal'))
             amount_tax = sum(order_lines.mapped('price_tax'))
 
             # Convert amounts to transaction currency
@@ -202,8 +202,13 @@ class PurchaseOrderLine(models.Model):
         """Prepare the values for the creation of account.move.line."""
         res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
         effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
-        unrounded_transfer_rate = self.price_subtotal / effective_process_wt
-        subTotal =  effective_process_wt * unrounded_transfer_rate
+        if effective_process_wt == 0:
+            unrounded_transfer_rate = self.price_unit
+            subTotal =  self.product_qty * unrounded_transfer_rate
+        else :
+            unrounded_transfer_rate = self.price_subtotal / effective_process_wt
+            subTotal =  effective_process_wt * unrounded_transfer_rate
+
         # Update price_unit to match transfer_rate
         res.update({
             'price_unit': unrounded_transfer_rate,
@@ -422,17 +427,24 @@ class PurchaseOrderLine(models.Model):
         for line in self:
             line.price_unit = line.rate
 
-    @api.depends('qty_g')
+    @api.depends('qty_g', 'product_packaging_qty')
     def _compute_product_qty(self):
         for line in self:
-            line.product_qty = line.qty_g
+            if line.qty_g:
+                line.product_qty = line.qty_g
+            else:
+                packaging_uom = line.product_packaging_id.product_uom_id
+                qty_per_packaging = line.product_packaging_id.qty
+                product_qty = packaging_uom._compute_quantity(line.product_packaging_qty * qty_per_packaging, line.product_uom)
+                if float_compare(product_qty, line.product_qty, precision_rounding=line.product_uom.rounding) != 0:
+                    line.product_qty = product_qty
 
     @api.depends('product_qty', 'price_unit', 'taxes_id')
     def _compute_amount(self):
         for line in self:
             tax_results = self.env['account.tax']._compute_taxes([line._convert_to_tax_base_line_dict()])
             totals = list(tax_results['totals'].values())[0]
-            amount_untaxed = line.amount
+            amount_untaxed = line.amount if line.amount else totals['amount_untaxed']
             amount_tax = totals['amount_tax']
 
             line.update({
