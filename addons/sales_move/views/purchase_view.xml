@@ -75,6 +75,7 @@
                  <xpath expr="//field[@name='product_qty']" position="after">
                   <field name="original_rate" string="Original Price" optional="hide"/>
                     <field name="rate" string="Rate" optional="hide"/>
+                    <field name="price_currency" string="Price Currency" optional="hide"/>
                     <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>

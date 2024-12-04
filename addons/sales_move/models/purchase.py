@@ -196,6 +196,7 @@ class PurchaseOrderLine(models.Model):
     amount = fields.Monetary(string="Amount", compute="_comput_amount", store=True)
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
     transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
+    price_currency = fields.Many2one('res.currency',string="Price Currency", default=lambda self: self.env.ref('base.USD').id)
 
     @api.model
     def _prepare_account_move_line(self, move=False):
@@ -214,7 +215,8 @@ class PurchaseOrderLine(models.Model):
             'price_unit': unrounded_transfer_rate,
             'subtotal': subTotal,
             'unrounded_transfer_rate': unrounded_transfer_rate,
-            'manual_quantity': self.manual_first_process
+            'manual_quantity': self.manual_first_process,
+            'price_currency': self.price_currency.id,
         })
         return res
 
@@ -439,20 +441,35 @@ class PurchaseOrderLine(models.Model):
                 if float_compare(product_qty, line.product_qty, precision_rounding=line.product_uom.rounding) != 0:
                     line.product_qty = product_qty
 
-    @api.depends('product_qty', 'price_unit', 'taxes_id')
+    @api.depends('product_qty', 'price_unit', 'price_currency', 'taxes_id')
     def _compute_amount(self):
         for line in self:
+            # Convert price_unit to the base currency if a different currency is selected
+            base_currency = self.env.ref('base.USD')  # Replace 'base.USD' with your base currency
+            price_unit_in_base = line.price_unit
+
+            if line.price_currency and line.price_currency != base_currency:
+                price_unit_in_base = line.price_currency._convert(
+                    line.price_unit,
+                    base_currency,
+                    line.company_id or self.env.company,
+                    fields.Date.today()
+                )
+
+            # Compute amounts
+            subtotal = line.product_qty * price_unit_in_base
+
             tax_results = self.env['account.tax']._compute_taxes([line._convert_to_tax_base_line_dict()])
             totals = list(tax_results['totals'].values())[0]
             amount_untaxed = line.amount if line.amount else totals['amount_untaxed']
             amount_tax = totals['amount_tax']
 
+            # Update fields
             line.update({
-                'price_subtotal': amount_untaxed,
+                'price_subtotal': subtotal,
                 'price_tax': amount_tax,
-                'price_total': amount_untaxed + amount_tax,
+                'price_total': subtotal + amount_tax,
             })
-
 
 class PurchaseOrderDeductions(models.Model):
     _name = 'purchase.order.deductions'
@@ -500,8 +517,13 @@ class AccountMoveLine(models.Model):
         compute='_compute_totals', store=True,
         currency_field='currency_id',
     )
+    price_currency = fields.Many2one(
+        'res.currency',
+        string="Price Currency",
 
-    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate', 'manual_quantity')
+    )
+
+    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate', 'manual_quantity', 'price_currency')
     def _compute_totals(self):
         for line in self:
             if line.display_type != 'product':
@@ -516,13 +538,24 @@ class AccountMoveLine(models.Model):
                 effective_quantity = line.quantity
                 line_discount_price_unit = line.price_unit * (1 - (line.discount / 100.0))
 
+            # Convert price_unit if a price_currency is set and it's different from the base currency
+            if line.price_currency and line.currency_id and line.price_currency != line.currency_id:
+                converted_price_unit = line.price_currency._convert(
+                    line_discount_price_unit,
+                    line.currency_id,
+                    line.company_id,
+                    line.move_id.date or fields.Date.today()
+                )
+            else:
+                converted_price_unit = line_discount_price_unit
+
             # Calculate the subtotal based on the effective quantity
-            subtotal = effective_quantity * line_discount_price_unit
+            subtotal = effective_quantity * converted_price_unit
 
             # Compute 'price_subtotal' and 'price_total'
             if line.tax_ids:
                 taxes_res = line.tax_ids.compute_all(
-                    line_discount_price_unit,
+                    converted_price_unit,
                     quantity=effective_quantity,
                     currency=line.currency_id,
                     product=line.product_id,
