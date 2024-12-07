@@ -2,6 +2,7 @@
 from odoo import  models, fields, api, _
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
+    currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.USD').id)
 
     def open_currency(self):
         return {

@@ -6,6 +6,9 @@
             <field name="model">account.payment.register</field>
             <field name="inherit_id" ref="account.view_account_payment_register_form"/>
             <field name="arch" type="xml">
+                <xpath expr="//field[@name='partner_bank_id']" position="after">
+                    <field name="currency" />
+                </xpath>
                 <xpath expr="//button[@name='action_create_payments']" position="after">
                        <button type="object"
                                 name="open_currency"
