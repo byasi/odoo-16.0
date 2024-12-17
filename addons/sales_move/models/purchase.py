@@ -34,7 +34,11 @@ class PurchaseOrder(models.Model):
     )
     transaction_price_per_unit = fields.Monetary(string="Transaction Price per Unit", currency_field='transaction_currency', compute="_compute_transaction_price_per_unit", store=True)
     original_market_price = fields.Monetary(string="Original Market Price", currency_field='company_currency_id')
-
+    currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.UGX').id)
+    partner_street = fields.Char(related='partner_id.street', string="Street", readonly=True)
+    partner_city = fields.Char(related='partner_id.city', string="City", readonly=True)
+    partner_zip = fields.Char(related='partner_id.zip', string="ZIP", readonly=True)
+    partner_country = fields.Many2one(related='partner_id.country_id', string="Country", readonly=True)
 
     def custom_round_down(self, value):
         scaled_value = value * 100
@@ -197,6 +201,16 @@ class PurchaseOrderLine(models.Model):
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
     transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
     price_currency = fields.Many2one('res.currency',string="Price Currency", default=lambda self: self.env.ref('base.USD').id)
+    dd = fields.Float(string="DD", compute="_compute_dd", store=True)
+
+    @api.depends('first_process_wt', 'second_process_wt')
+    def _compute_dd(self):
+        for line in self:
+            if line.first_process_wt and line.second_process_wt:
+                dd = self.custom_round_down((line.first_process_wt)/(line.first_process_wt - line.second_process_wt))
+                line.dd = dd
+            else:
+                dd = 0.0
 
     @api.model
     def _prepare_account_move_line(self, move=False):
