@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+    <record id="view_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="market_price_currency" string="Market Price Currency"/>
+                    <field name="market_price" string="Market Price"/>
+                    <field name="discount" string="Discount/additions"/>
+                    <field name="net_price" string="Net Price"/>
+            </xpath>
+             <xpath expr="//field[@widget='section_and_note_text']" position="after">
+                <field name="gross_weight" string="Gross Weight"
+                attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }"
+                />
+                <field name="manual_gross_weight" string="Manual Gross Weight"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    }"
+                />
+                <field name="net_weight" string="Net Weight"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }"
+                />
+                <field name="inventory_product_quality" string="Inventory Product Quality"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }"
+                />
+                <field name="manual_item_quality" string="Manual Item Quality"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    }"
+                />
+                <field name="rate" string="Rate"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }"
+                />
+            </xpath>
+
+        </field>
+    </record>
+    </data>
+</odoo>
