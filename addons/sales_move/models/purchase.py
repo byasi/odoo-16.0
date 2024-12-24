@@ -345,10 +345,10 @@ class PurchaseOrderLine(models.Model):
         res = super(PurchaseOrderLine, self)._prepare_stock_moves(picking)
         for move in res:
             move.update({
+                'purchase_cost': self.price_subtotal,
                 'product_quality': self.product_quality,
                 'first_process_wt': self.first_process_wt,
                 'product_uom_qty': self.first_process_wt,
-                'purchase_cost': self.price_subtotal,
             })
         return res
 

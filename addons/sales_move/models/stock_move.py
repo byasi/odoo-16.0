@@ -18,7 +18,7 @@ class StockMove(models.Model):
     store=True,
     readonly=True
     )
-    purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_purchase_cost", store=True, readonly=True)
+    purchase_cost = fields.Float(string="Purchase Cost", store=True, readonly=True)
     display_quantity = fields.Float(
     string="Product Quantity",
     compute="_compute_display_quantity",
@@ -37,6 +37,7 @@ class StockMove(models.Model):
         store=True,
         readonly=True
     )
+    total_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_total_purchase_cost", store=True, readonly=True)
 
     @api.depends('move_line_ids.mo_product_quality', 'move_line_ids.mo_first_process_wt')
     def _compute_average_values(self):
@@ -68,13 +69,13 @@ class StockMove(models.Model):
             move.display_quantity = lot_quantity
 
     @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_purchase_cost')
-    def _compute_purchase_cost(self):
+    def _compute_total_purchase_cost(self):
         for move in self:
             lot_cost = 0.0
             for line in move.move_line_ids:
                 if line.mo_purchase_cost:
                     lot_cost = sum(line.mo_purchase_cost for line in move.move_line_ids)
-            move.purchase_cost = lot_cost
+            move.total_purchase_cost = lot_cost
 
 
     @api.model_create_multi
