@@ -18,6 +18,7 @@ class StockMove(models.Model):
     store=True,
     readonly=True
     )
+    purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_purchase_cost", store=True, readonly=True)
     display_quantity = fields.Float(
     string="Product Quantity",
     compute="_compute_display_quantity",
@@ -42,7 +43,7 @@ class StockMove(models.Model):
         for move in self:
             total_lines = len(move.move_line_ids)
             total_product_quality = self.custom_round_down(sum(line.mo_product_quality for line in move.move_line_ids))
-           
+
             total_first_process_wt = self.custom_round_down(sum(line.mo_first_process_wt for line in move.move_line_ids))
 
             move.average_lot_product_quality = self.custom_round_down((total_product_quality / total_lines)) if total_lines else 0.0
@@ -52,7 +53,6 @@ class StockMove(models.Model):
     def _compute_total_weighted_average(self):
         for move in self:
             total_quantity =  move.display_quantity
-            
             # total_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
             # NOTE  divide by totalquantity not totalquality
             total_weighted_quality = self.custom_round_down(sum(self.custom_round_down(line.mo_product_quality * line.mo_first_process_wt) for line in move.move_line_ids))
@@ -66,6 +66,16 @@ class StockMove(models.Model):
                 if line.mo_first_process_wt:
                     lot_quantity = sum(line.mo_first_process_wt for line in move.move_line_ids)
             move.display_quantity = lot_quantity
+
+    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_purchase_cost')
+    def _compute_purchase_cost(self):
+        for move in self:
+            lot_cost = 0.0
+            for line in move.move_line_ids:
+                if line.mo_purchase_cost:
+                    lot_cost = sum(line.mo_purchase_cost for line in move.move_line_ids)
+            move.purchase_cost = lot_cost
+
 
     @api.model_create_multi
     def _prepare_stock_moves(self, picking):

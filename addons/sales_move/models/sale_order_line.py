@@ -39,6 +39,7 @@ class SaleOrderLine(models.Model):
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
     inventory_product_quality = fields.Float(string="Inventory Product Quality",compute="_compute_inventory_product_quality", store=True)
     manual_item_quality = fields.Float(string="Manual Item Quality", store=True)
+    product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     price_unit = fields.Float(
         string="Unit Price",
         compute='_compute_price_unit',
@@ -118,6 +119,33 @@ class SaleOrderLine(models.Model):
             else:
                 line.inventory_product_quality = 0.0
 
+    @api.depends('qty_delivered', 'product_id')
+    def _compute_product_cost(self):
+        for line in self:
+            if line.qty_delivered > 0 and line.product_id:
+                # Find the related stock.moves for this sale.order.line
+                stock_moves = self.env['stock.move'].search([
+                    ('sale_line_id', '=', line.id),
+                    ('product_id', '=', line.product_id.id),
+                    ('state', '=', 'done')  # Only consider completed moves
+                ])
+
+                if stock_moves:
+                    # Fetch all stock.move.lines related to these stock.moves
+                    stock_move_lines = self.env['stock.move.line'].search([
+                        ('move_id', 'in', stock_moves.ids)
+                    ])
+
+                    # Calculate the average value of average_product_quality
+                    if stock_move_lines:
+                        total_cost = sum(stock_move_lines.mapped('product_cost'))
+                        line.product_cost = total_cost
+                    else:
+                        line.product_cost = 0.0
+                else:
+                    line.product_cost = 0.0
+            else:
+                line.product_cost = 0.0
 
 
     @api.depends('display_type', 'product_id', 'product_packaging_qty', 'net_weight')

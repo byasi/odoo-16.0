@@ -202,15 +202,29 @@ class PurchaseOrderLine(models.Model):
     transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
     price_currency = fields.Many2one('res.currency',string="Price Currency", default=lambda self: self.env.ref('base.USD').id)
     dd = fields.Float(string="DD", compute="_compute_dd", store=True)
+    actual_dd = fields.Float(string="DD", compute="_compute_actual_dd", store=True)
+    manual_dd = fields.Float(string="DD", store=True)
 
-    @api.depends('first_process_wt', 'second_process_wt')
+    @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
     def _compute_dd(self):
         for line in self:
-            if line.first_process_wt and line.second_process_wt:
-                dd = self.custom_round_down((line.first_process_wt)/(line.first_process_wt - line.second_process_wt))
+            if line.manual_dd:  # Use manual_dd if provided
+                line.dd = line.manual_dd
+            elif line.first_process_wt and line.second_process_wt:
+                dd = self.custom_round_down(line.first_process_wt / (line.first_process_wt - line.second_process_wt))
                 line.dd = dd
             else:
-                dd = 0.0
+                line.dd = 0.0
+
+    @api.depends('first_process_wt', 'second_process_wt',)
+    def _compute_actual_dd(self):
+        for line in self:
+            if line.first_process_wt and line.second_process_wt:
+                dd = self.custom_round_down(line.first_process_wt / (line.first_process_wt - line.second_process_wt))
+                line.actual_dd = dd
+            else:
+                line.actual_dd = 0.0
+
 
     @api.model
     def _prepare_account_move_line(self, move=False):
@@ -333,7 +347,8 @@ class PurchaseOrderLine(models.Model):
             move.update({
                 'product_quality': self.product_quality,
                 'first_process_wt': self.first_process_wt,
-                'product_uom_qty': self.first_process_wt
+                'product_uom_qty': self.first_process_wt,
+                'purchase_cost': self.price_subtotal,
             })
         return res
 
@@ -345,7 +360,7 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.product_quality_difference = 0.0
 
-    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight',)
+    @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight', 'dd')
     def _compute_product_quality(self):
         for line in self:
                 try:
@@ -353,6 +368,7 @@ class PurchaseOrderLine(models.Model):
                         'first_process_wt': line.first_process_wt,
                         'second_process_wt': line.second_process_wt,
                         'gross_weight': line.gross_weight,
+                        'dd': line.dd,
                         'custom_round_down': self.custom_round_down
                     }
                     formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')

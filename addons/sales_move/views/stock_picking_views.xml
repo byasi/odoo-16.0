@@ -9,6 +9,7 @@
                 <xpath expr="//field[@name='product_uom_qty']" position="after">
                     <field name="first_process_wt" string="First Process Wt"/>
                     <field name="product_quality" string="Product Quality"/>
+                    <field name="purchase_cost" string="Purchase Cost"/>
                 </xpath>
             </field>
         </record>
@@ -20,6 +21,9 @@
             <field name="arch" type="xml">
                 <xpath expr="//tree/field[@name='reserved_uom_qty']" position="before">
                     <field name="average_product_quality"
+                           attrs="{'readonly': [('state', 'in', ('done', 'cancel'))]}"
+                           context="{'default_picking_id': id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id, 'default_company_id': company_id}" />
+                    <field name="product_cost"
                            attrs="{'readonly': [('state', 'in', ('done', 'cancel'))]}"
                            context="{'default_picking_id': id, 'default_location_id': location_id, 'default_location_dest_id': location_dest_id, 'default_company_id': company_id}" />
                     <!-- <field name="product_quantity"

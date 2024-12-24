@@ -22,6 +22,7 @@
                 <xpath expr="//page[@name='components']//field[@name='product_uom_qty']" position="after">
                     <field name="total_weighted_average" string="Total Weighted Average Quality" />
                     <field name="actual_weighted_pq" string="Manual Weighted Product Quality"/>
+                    <field name="purchase_cost" string="Product Cost"/>
                     <!-- <field name="display_quantity" string="Product Quantity" /> -->
                     <!-- <field name="average_lot_product_quality" string="Average Product Quality" /> -->
                     <!-- <field name="average_lot_first_process_wt" string="Average First Process Wt" /> -->

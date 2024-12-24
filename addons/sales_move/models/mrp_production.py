@@ -13,6 +13,16 @@ class MrpProduction(models.Model):
         store=True,
         readonly=True
     )
+    purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_lot_purchase_cost", store=True)
+
+    @api.depends('move_raw_ids.purchase_cost')
+    def _compute_lot_purchase_cost(self):
+        for production in self:
+            if production.move_raw_ids:
+                stock_move = production.move_raw_ids.filtered(lambda m: m.purchase_cost).sorted('date', reverse=True)[:1]
+                production.purchase_cost = stock_move.purchase_cost if stock_move else 0.0
+            else:
+                production.purchase_cost = 0.0
 
     @api.depends('move_raw_ids.display_quantity')
     def _compute_display_quantity(self):

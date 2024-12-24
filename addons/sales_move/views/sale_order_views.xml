@@ -41,7 +41,15 @@
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
                     }"
                 />
+                <field name="product_cost" string="Product Cost"
+                    optional="hide"
+                    attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }"
+                />
                 <field name="rate" string="Rate"
+                    optional="hide"
                     attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]

@@ -11,11 +11,14 @@ class StockMoveLine(models.Model):
         store=True
     )
     # product_quality = fields.Float(string="Product Quality", store=True)
-    # first_process_wt = fields.Float(string="First Process Wt", store=True)
+    
     lot_product_quality = fields.Float(string="Product Quality", compute="_compute_lot_product_quality", store=True)  # from Inventory
     lot_first_process_wt = fields.Float(string="First Process Wt", compute="_compute_lot_first_process_wt", store=True) # from Inventory
+    lot_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_lot_purchase_cost", store=True)
     mo_product_quality = fields.Float(string="Product Quality ", compute="_fetch_lot_values", store=True)  # from  manufacturing
     mo_first_process_wt = fields.Float(string="First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
+    mo_purchase_cost = fields.Float(string="Purchase Cost", compute="_fetch_lot_values", store=True)
+
 
     @api.depends('move_id.product_quality')
     def _compute_lot_product_quality(self):
@@ -27,6 +30,11 @@ class StockMoveLine(models.Model):
         for line in self:
             line.lot_first_process_wt = line.move_id.first_process_wt
 
+    @api.depends('move_id.purchase_cost')
+    def _compute_lot_purchase_cost(self):
+        for line in self:
+            line.lot_purchase_cost = line.move_id.purchase_cost
+
     @api.depends('lot_id')
     def _fetch_lot_values(self):
         for line in self:
@@ -37,13 +45,16 @@ class StockMoveLine(models.Model):
                     # Set the values only if matching_line is found
                     line.mo_product_quality = matching_line.lot_product_quality
                     line.mo_first_process_wt = matching_line.lot_first_process_wt
+                    line.mo_purchase_cost = matching_line.lot_purchase_cost
                 else:
                     # If no matching line is found, set to 0.0
                     line.mo_product_quality = 0.0
                     line.mo_first_process_wt = 0.0
+                    line.mo_purchase_cost = 0.0
             else:
                 line.mo_product_quality = 0.0
                 line.mo_first_process_wt = 0.0
+                line.mo_purchase_cost = 0.0
 
 
     qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
@@ -76,6 +87,7 @@ class StockMoveLine(models.Model):
 
     product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_quantity", store=True)
     average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quantity", store=True)
+    product_cost = fields.Float(string="Product Cost", compute="_compute_product_quantity", store=True)
 
     @api.depends('lot_id')
     def _compute_product_quantity(self):
@@ -84,6 +96,8 @@ class StockMoveLine(models.Model):
                 mo = self.env['mrp.production'].search([('lot_producing_id.name', '=', line.lot_id.name)], limit=1)
                 line.product_quantity = mo.product_qty if mo else 0.0
                 line.average_product_quality = mo.weighted_average_pq if mo else 0.0
+                line.product_cost = mo.purchase_cost if mo else 0.0
             else:
                 line.product_quantity = 0.0
                 line.average_product_quality = 0.0
+                line.product_cost = 0.0
