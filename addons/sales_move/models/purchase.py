@@ -202,9 +202,10 @@ class PurchaseOrderLine(models.Model):
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
     transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
     price_currency = fields.Many2one('res.currency',string="Price Currency", default=lambda self: self.env.ref('base.USD').id)
-    dd = fields.Float(string="DD", compute="_compute_dd", store=True)
+    dd = fields.Float(string="DD", compute="_compute_dd",digits=(16, 4), store=True)
     actual_dd = fields.Float(string="DD", compute="_compute_actual_dd", store=True)
     manual_dd = fields.Float(string="DD", store=True)
+    # custom_round_down(2302.842/dd)-219.318
 
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
     def _compute_dd(self):

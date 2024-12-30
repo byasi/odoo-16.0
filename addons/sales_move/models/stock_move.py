@@ -22,6 +22,7 @@ class StockMove(models.Model):
     display_quantity = fields.Float(
     string="Product Quantity",
     compute="_compute_display_quantity",
+    digits=(16, 4),
     store=True,
     readonly=True)
 
@@ -56,8 +57,8 @@ class StockMove(models.Model):
             total_quantity =  move.display_quantity
             # total_quality = self.custom_round_down(sum(line.lot_product_quality for line in move.move_line_ids))
             # NOTE  divide by totalquantity not totalquality
-            total_weighted_quality = self.custom_round_down(sum(self.custom_round_down(line.mo_product_quality * line.mo_first_process_wt) for line in move.move_line_ids))
-            move.total_weighted_average = self.custom_round_down((total_weighted_quality / move.display_quantity) ) if total_quantity else 0.0
+            total_weighted_quality = sum(line.mo_product_quality * line.mo_first_process_wt for line in move.move_line_ids)
+            move.total_weighted_average = self.custom_round_down(total_weighted_quality / move.display_quantity) if total_quantity else 0.0
 
     @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_first_process_wt')
     def _compute_display_quantity(self):
