@@ -39,6 +39,7 @@ class PurchaseOrder(models.Model):
     partner_city = fields.Char(related='partner_id.city', string="City", readonly=True)
     partner_zip = fields.Char(related='partner_id.zip', string="ZIP", readonly=True)
     partner_country = fields.Many2one(related='partner_id.country_id', string="Country", readonly=True)
+    partner_contact = fields.Char(related='partner_id.phone', string="Contact", readonly=True)
 
     def custom_round_down(self, value):
         scaled_value = value * 100
@@ -208,9 +209,7 @@ class PurchaseOrderLine(models.Model):
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
     def _compute_dd(self):
         for line in self:
-            if line.manual_dd:  # Use manual_dd if provided
-                line.dd = line.manual_dd
-            elif line.first_process_wt and line.second_process_wt:
+            if line.first_process_wt and line.second_process_wt:
                 dd = self.custom_round_down(line.first_process_wt / (line.first_process_wt - line.second_process_wt))
                 line.dd = dd
             else:
@@ -335,10 +334,23 @@ class PurchaseOrderLine(models.Model):
 
 
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
-    manual_product_quality = fields.Float(string="Manual Product Quality", store=True)
+    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality", store=True, readonly=False)
     manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
     original_product_quality = fields.Float(string="Original Product Quality", compute="_compute_original_product_quality", readonly=True)
     product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference", readonly=True)
+
+    @api.depends('manual_dd', 'manual_product_quality')
+    def _compute_manual_product_quality(self):
+        """Compute manual_product_quality using the formula if manual_dd is provided."""
+        for record in self:
+            if record.manual_dd:  # If manual_dd is provided, calculate it using the formula
+                record.manual_product_quality = self.custom_round_down(
+                    abs(self.custom_round_down(
+                    (2302.842 / self.custom_round_down(record.manual_dd))
+                ) - 219.318)
+                )
+            # Else, keep the manual value as is (user-provided)
+
 
     @api.model_create_multi
     def _prepare_stock_moves(self, picking):

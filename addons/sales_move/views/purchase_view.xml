@@ -37,7 +37,7 @@
             <!-- Add vendor address fields -->
                     <!-- <field name="partner_street" string="Street" readonly="1"/> -->
                     <!-- <field name="partner_city" string="City" readonly="1"/> -->
-                    <!-- <field name="partner_zip" string="ZIP" readonly="1"/> -->
+                    <field name="partner_contact" string="Phone" readonly="1"/>
                     <field name="partner_country" string="Country" readonly="1"/>
                 </xpath>
 
