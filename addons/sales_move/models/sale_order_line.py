@@ -1,10 +1,15 @@
 from odoo import api, fields, models, _
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_is_zero, float_compare, float_round
 import math
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    state = fields.Selection(
+        selection_add=[('unfixed', 'Unfixed')],  # Add new state
+        ondelete={'unfixed': 'set default'}
+    )
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
@@ -30,7 +35,58 @@ class SaleOrder(models.Model):
             else:
                 order.net_price = self.custom_round_down(order.market_price) if order.market_price else 0.
 
+    # def action_confirm(self):
+    #     """Override confirm method to change state to 'unfixed'."""
+    #     for order in self:
+    #         if order.state not in ('unfixed', 'sale'):
+    #             order.state = 'unfixed'
+    #         else:
+    #             super(SaleOrder, self).action_confirm()
 
+    def action_convert_to_sales_order(self):
+        """ Confirm the given quotation(s) and set their confirmation date.
+
+        If the corresponding setting is enabled, also locks the Sale Order.
+
+        :return: True
+        :rtype: bool
+        :raise: UserError if trying to confirm locked or cancelled SO's
+        """
+        if self._get_forbidden_state_confirm() & set(self.mapped('state')):
+            raise UserError(_(
+                "It is not allowed to confirm an order in the following states: %s",
+                ", ".join(self._get_forbidden_state_confirm()),
+            ))
+
+        self.order_line._validate_analytic_distribution()
+
+        for order in self:
+            order.validate_taxes_on_sales_order()
+            if order.state == 'unfixed':
+                order.state = 'sale'
+            if order.partner_id in order.message_partner_ids:
+                continue
+            order.message_subscribe([order.partner_id.id])
+
+        self.write(self._prepare_confirmation_values())
+
+        # Context key 'default_name' is sometimes propagated up to here.
+        # We don't need it and it creates issues in the creation of linked records.
+        context = self._context.copy()
+        context.pop('default_name', None)
+
+        self.with_context(context)._action_confirm()
+
+        if self[:1].create_uid.has_group('sale.group_auto_done_setting'):
+            # Public user can confirm SO, so we check the group on any record creator.
+            self.action_done()
+
+        return True
+    def action_back_to_unpicked(self):
+        """Convert 'Sales Order' back to 'unfixed'."""
+        for order in self:
+            if order.state == 'sale':
+                order.state = 'unfixed'
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
     rate = fields.Float(string="Rate", compute="_compute_rate", store=True)
