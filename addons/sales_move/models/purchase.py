@@ -40,6 +40,7 @@ class PurchaseOrder(models.Model):
     partner_zip = fields.Char(related='partner_id.zip', string="ZIP", readonly=True)
     partner_country = fields.Many2one(related='partner_id.country_id', string="Country", readonly=True)
     partner_contact = fields.Char(related='partner_id.phone', string="Contact", readonly=True)
+    
 
     def custom_round_down(self, value):
         scaled_value = value * 100
@@ -205,6 +206,7 @@ class PurchaseOrderLine(models.Model):
     dd = fields.Float(string="DD", compute="_compute_dd",digits=(16, 4), store=True)
     actual_dd = fields.Float(string="DD", compute="_compute_actual_dd", store=True)
     manual_dd = fields.Float(string="DD", store=True)
+    UGX_currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.UGX').id)
     # custom_round_down(2302.842/dd)-219.318
 
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
