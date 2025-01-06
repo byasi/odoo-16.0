@@ -22,7 +22,14 @@
         'views/stock_move_line_views.xml',
         'views/account_payment_register_views.xml',
         'views/sale_order_views.xml',
+        'wizard/unfixed_price_view.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'sales_move/static/src/xml/list_controller.xml',
+            'sales_move/static/src/js/list_controller.js',
+        ],
+    },
     'license': 'LGPL-3',
     'images': ['static/description/banner.png'],
     'installable': True,

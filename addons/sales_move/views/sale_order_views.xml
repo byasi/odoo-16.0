@@ -29,6 +29,14 @@
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
             </xpath>
+             <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
+                    <field name="current_market_price" string="Current Market Price"
+                        attrs="{'invisible': [('state', '!=', 'unfixed')]}"
+                    />
+                    <field name="profit_loss" string="Profit/Loss"
+                        attrs="{'invisible': [('state', '!=', 'unfixed')]}"
+                    />
+            </xpath>
              <xpath expr="//field[@widget='section_and_note_text']" position="after">
                 <field name="gross_weight" string="Gross Weight"
                 attrs="{
@@ -74,6 +82,17 @@
                 />
             </xpath>
 
+        </field>
+    </record>
+
+    <record id="view_order_tree_inherit" model="ir.ui.view">
+        <field name="name">sale.order.tree.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+        <xpath expr="//tree" position="attributes">
+            <attribute name="js_class">sales_move_list_controller</attribute>
+        </xpath>
         </field>
     </record>
     </data>

@@ -12,6 +12,8 @@ class SaleOrder(models.Model):
     )
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
+    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency')
+    profit_loss = fields.Monetary(string="Profit/Loss", compute="_compute_profit_loss", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
     net_price = fields.Monetary(
     string="Net Price",
@@ -25,6 +27,12 @@ class SaleOrder(models.Model):
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
+    def _compute_profit_loss(self):
+        for order in self:
+            if order.market_price and order.current_market_price:
+                order.profit_loss = order.current_market_price - order.market_price
+            else:
+                order.profit_loss = 0.0
 
     @api.depends('market_price', 'discount')
     def _compute_net_price(self):
@@ -87,6 +95,15 @@ class SaleOrder(models.Model):
         for order in self:
             if order.state == 'sale':
                 order.state = 'unfixed'
+
+    def action_open_set_price_wizard(self):
+        return {
+            'name': 'Set Current Market Price',
+            'type': 'ir.actions.act_window',
+            'res_model': 'set.current.market.price.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+        }
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
     rate = fields.Float(string="Rate", compute="_compute_rate", store=True)

@@ -1,2 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_purchase_order_deductions,access.purchase.order.deductions,model_purchase_order_deductions,,1,1,1,1
+access_sale_order_unfixedpricewizard,access.sale.order.unfixedpricewizard,model_sale_order_unfixedpricewizard,,1,1,1,1
