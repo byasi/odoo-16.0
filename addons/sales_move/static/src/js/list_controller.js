@@ -19,6 +19,9 @@ patch(ListController.prototype, "sales_move", {
             target: 'new',
             res_model: 'sale.order.unfixedpricewizard',
             views: [[false, 'form']],
+            context: {
+                active_ids: this.model.root.selection.map(record => record.id),
+            },
         })
     }
 });

@@ -1,21 +1,32 @@
-from odoo import api, fields, models, _
-from odoo.exceptions import AccessError, UserError, ValidationError
-from odoo.tools import float_is_zero, float_compare, float_round
-import math
+from odoo import api, fields, models
 
-class SetUnfixedPriceWizard(models.TransientModel):
+class SetUnfixedPriceWizard(models.Model):
     _name = 'sale.order.unfixedpricewizard'
     _description = "Fix Price"
-    currency_id = fields.Many2one('res.currency', 'Currency', required=True, 
-        default=lambda self: self.env.company.currency_id.id)
-    current_market_price = fields.Monetary(string="Current Market Price",currency_field='currency_id', required=True)
+
+    currency_id = fields.Many2one(
+        'res.currency',
+        string='Currency',
+        required=True,
+        default=lambda self: self.env.company.currency_id.id
+    )
+    current_market_price = fields.Monetary(
+        string="Current Market Price",
+        currency_field='currency_id',
+        required=True,
+        store=True
+    )
+    _transient_cache = {}
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(SetUnfixedPriceWizard, self).default_get(fields_list)
+        # Load the last entered value from the transient cache
+        last_value = self._transient_cache.get('current_market_price', 0.0)
+        res['current_market_price'] = last_value
+        return res
 
     def action_open_set_price_wizard(self):
-        pass
-        # return {
-        #     'name': 'Set Current Market Price',
-        #     'type': 'ir.actions.act_window',
-        #     'res_model': 'set.current.market.price.wizard',
-        #     'view_mode': 'form',
-        #     'target': 'new',
-        # }
+        # Save the entered value to the transient cache
+        self._transient_cache['current_market_price'] = self.current_market_price
+        return True

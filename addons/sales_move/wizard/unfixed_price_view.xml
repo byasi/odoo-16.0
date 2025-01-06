@@ -8,19 +8,20 @@
             <group>
                 <field name="current_market_price" string="Current Market Price"/>
             </group>
-            <!-- <footer>
+            <footer>
                 <button string="Set Price" type="object" name="action_open_set_price_wizard" class="btn-primary"/>
                 <button string="Cancel" class="btn-secondary" special="cancel"/>
-            </footer> -->
+            </footer>
         </form>
     </field>
 </record>
 
 <record id="sale_order_unfixedpricewizard_action" model="ir.actions.act_window">
-    <field name="name">Set unfixed Price</field>
+    <field name="name">Set Current Market Price</field>
     <field name="res_model">sale.order.unfixedpricewizard</field>
     <field name="view_mode">form</field>
     <field name="target">new</field>
+    <field name="context">{'active_ids': active_ids}</field>
 </record>
 
 </odoo>

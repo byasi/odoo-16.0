@@ -12,7 +12,7 @@ class SaleOrder(models.Model):
     )
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
-    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency')
+    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', default=2655)
     profit_loss = fields.Monetary(string="Profit/Loss", compute="_compute_profit_loss", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
     net_price = fields.Monetary(
