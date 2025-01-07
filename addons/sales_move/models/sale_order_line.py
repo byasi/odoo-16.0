@@ -12,7 +12,7 @@ class SaleOrder(models.Model):
     )
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
-    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', default=2655)
+    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', help="Market price set via the wizard.")
     profit_loss = fields.Monetary(string="Profit/Loss", compute="_compute_profit_loss", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
     net_price = fields.Monetary(
@@ -21,16 +21,32 @@ class SaleOrder(models.Model):
     currency_field='market_price_currency',
     store=True
     )
+    current_net_price = fields.Monetary(
+    string="Net Price",
+    compute="_compute_current_net_price",
+    currency_field='market_price_currency',
+    store=True
+    )
+
+    @api.depends('current_market_price', 'discount')
+    def _compute_current_net_price(self):
+        for order in self:
+            if order.current_market_price and order.discount:
+                net_price = order.current_market_price + order.discount
+                order.current_net_price = self.custom_round_down(net_price)
+            else:
+                order.current_net_price = self.custom_round_down(order.current_market_price) if order.current_market_price else 0.
 
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
+    @api.depends('net_price', 'current_net_price')
     def _compute_profit_loss(self):
         for order in self:
-            if order.market_price and order.current_market_price:
-                order.profit_loss = order.current_market_price - order.market_price
+            if order.current_net_price and order.net_price:
+                order.profit_loss = order.current_net_price - order.net_price
             else:
                 order.profit_loss = 0.0
 
@@ -118,7 +134,29 @@ class SaleOrderLine(models.Model):
         compute='_compute_price_unit',
         digits='Product Price',
         store=True, readonly=False, required=True, precompute=True)
-    
+
+    current_price_unit = fields.Float(
+        string="Current Unit Price",
+        compute='_compute_current_price_unit',
+        digits='Product Price',
+        store=True, readonly=False, required=True,
+    )
+    current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+
+    @api.depends('order_id.current_net_price')
+    def _compute_current_rate(self):
+        for line in self:
+            if line.order_id.current_net_price:
+                line.current_rate =  self.custom_round_down(line.order_id.current_net_price/31.1034768)
+            else:
+                line.current_rate = 0.0
+
+    @api.depends('current_rate')
+    def _compute_current_price_unit(self):
+        for line in self:
+            line.current_price_unit = line.current_rate
+
+
     @api.depends('rate')
     def _compute_price_unit(self):
         for line in self:

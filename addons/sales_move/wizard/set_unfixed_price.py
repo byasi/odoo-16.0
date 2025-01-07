@@ -29,4 +29,7 @@ class SetUnfixedPriceWizard(models.Model):
     def action_open_set_price_wizard(self):
         # Save the entered value to the transient cache
         self._transient_cache['current_market_price'] = self.current_market_price
+        # Update the current_market_price in all Sale Orders
+        sale_orders = self.env['sale.order'].search([])  # Fetch all sale orders
+        sale_orders.write({'current_market_price': self.current_market_price})
         return True
