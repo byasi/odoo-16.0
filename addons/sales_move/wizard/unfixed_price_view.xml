@@ -9,7 +9,7 @@
                 <field name="current_market_price" string="Current Market Price"/>
             </group>
             <footer>
-                <button string="Set Price" type="object" name="action_open_set_price_wizard" class="btn-primary"/>
+                <button string="Update Current Market Price" type="object" name="action_open_set_price_wizard" class="btn-primary"/>
                 <button string="Cancel" class="btn-secondary" special="cancel"/>
             </footer>
         </form>

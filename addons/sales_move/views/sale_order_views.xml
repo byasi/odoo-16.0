@@ -77,8 +77,7 @@
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
                     }"
                 />
-               
-              
+
 
                 <!-- <field name="current_price_unit" string="Current Price Unit"
                         optional="show"
@@ -124,6 +123,37 @@
         <field name="arch" type="xml">
         <xpath expr="//tree" position="attributes">
             <attribute name="js_class">sales_move_list_controller</attribute>
+        </xpath>
+        <xpath expr="//tree/field[@name='activity_ids']" position="after">
+         <field name="market_price" string="Market Price" optional="hide" />
+         <field name="current_market_price" string="Current Market Price" optional="hide" />
+         <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+
+        </xpath>
+         <xpath expr="//tree/field[@name='state']" position="before">
+          <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+
+        </xpath>
+        </field>
+    </record>
+
+     <record id="view_quotation_tree_inherit" model="ir.ui.view">
+        <field name="name">sale.order.tree.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+        <xpath expr="//tree" position="attributes">
+            <attribute name="js_class">sales_move_list_controller</attribute>
+        </xpath>
+        <xpath expr="//tree/field[@name='activity_ids']" position="after">
+            <field name="market_price" string="Market Price" optional="hide" />
+            <field name="current_market_price" string="Current Market Price" optional="hide" />
+            <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+
+        </xpath>
+          <xpath expr="//tree/field[@name='state']" position="before">
+          <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+
         </xpath>
         </field>
     </record>

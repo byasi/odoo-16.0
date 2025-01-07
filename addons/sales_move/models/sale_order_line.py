@@ -27,6 +27,18 @@ class SaleOrder(models.Model):
     currency_field='market_price_currency',
     store=True
     )
+    
+    total_current_subTotal = fields.Monetary(
+        string="Total Current Subtotal",
+        currency_field='currency_id',
+        compute="_compute_total_current_subTotal",
+        store=True,
+    )
+
+    @api.depends('order_line.current_subTotal')
+    def _compute_total_current_subTotal(self):
+        for order in self:
+            order.total_current_subTotal = sum(order.order_line.mapped('current_subTotal'))
 
     @api.depends('current_market_price', 'discount')
     def _compute_current_net_price(self):
@@ -42,11 +54,11 @@ class SaleOrder(models.Model):
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
-    @api.depends('net_price', 'current_net_price')
+    @api.depends('total_current_subTotal', 'amount_untaxed')
     def _compute_profit_loss(self):
         for order in self:
-            if order.current_net_price and order.net_price:
-                order.profit_loss = order.current_net_price - order.net_price
+            if order.total_current_subTotal and order.amount_untaxed:
+                order.profit_loss = order.total_current_subTotal - order.amount_untaxed
             else:
                 order.profit_loss = 0.0
 
@@ -59,13 +71,6 @@ class SaleOrder(models.Model):
             else:
                 order.net_price = self.custom_round_down(order.market_price) if order.market_price else 0.
 
-    # def action_confirm(self):
-    #     """Override confirm method to change state to 'unfixed'."""
-    #     for order in self:
-    #         if order.state not in ('unfixed', 'sale'):
-    #             order.state = 'unfixed'
-    #         else:
-    #             super(SaleOrder, self).action_confirm()
 
     def action_convert_to_sales_order(self):
         """ Confirm the given quotation(s) and set their confirmation date.
@@ -129,6 +134,8 @@ class SaleOrderLine(models.Model):
     inventory_product_quality = fields.Float(string="Inventory Product Quality",compute="_compute_inventory_product_quality", store=True)
     manual_item_quality = fields.Float(string="Manual Item Quality", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
+    current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True)
+
     price_unit = fields.Float(
         string="Unit Price",
         compute='_compute_price_unit',
@@ -142,6 +149,11 @@ class SaleOrderLine(models.Model):
         store=True, readonly=False, required=True,
     )
     current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+
+    @api.depends('current_price_unit', 'product_uom_qty')
+    def _compute_current_subTotal(self):
+        for line in self:
+            line.current_subTotal = line.current_price_unit * line.product_uom_qty
 
     @api.depends('order_id.current_net_price')
     def _compute_current_rate(self):
