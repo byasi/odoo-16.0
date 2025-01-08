@@ -32,4 +32,8 @@ class SetUnfixedPriceWizard(models.Model):
         # Update the current_market_price in all Sale Orders
         sale_orders = self.env['sale.order'].search([('state', '=', 'unfixed')])  # Fetch all sale orders
         sale_orders.write({'current_market_price': self.current_market_price})
-        return True
+          # Return an action to reload the Sale Order tree view
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }

@@ -28,6 +28,9 @@
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
+                     <field name="original_profit" string="Profit"
+                        attrs="{'invisible': [('state', '!=', 'sale')]}"
+                    />
             </xpath>
              <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
                     <field name="current_market_price" string="Current Market Price"
@@ -130,8 +133,16 @@
          <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
 
         </xpath>
-         <xpath expr="//tree/field[@name='state']" position="before">
+         <xpath expr="//tree/field[@name='invoice_status']" position="before">
+        <field name="original_profit" string="Profit"
+                        attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
+                        sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
+                    />
           <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+          <field name="state"
+                decoration-success="state == 'sale' or state == 'done'"
+                decoration-info="state == 'draft' or state == 'sent'"
+                widget="badge" optional="show"/>
 
         </xpath>
         </field>
@@ -152,6 +163,10 @@
 
         </xpath>
           <xpath expr="//tree/field[@name='state']" position="before">
+           <field name="original_profit" string="Profit"
+                        attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
+                        sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
+                    />
           <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
 
         </xpath>

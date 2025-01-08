@@ -12,8 +12,10 @@ class SaleOrder(models.Model):
     )
     market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
+    old_market_price = fields.Monetary(string="Old Market Price", currency_field='market_price_currency')
     current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', help="Market price set via the wizard.")
     profit_loss = fields.Monetary(string="Profit/Loss", compute="_compute_profit_loss", currency_field='market_price_currency')
+    original_profit = fields.Monetary(string="Original Profit", compute="_compute_original_profit_loss", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
     net_price = fields.Monetary(
     string="Net Price",
@@ -39,6 +41,15 @@ class SaleOrder(models.Model):
     def _compute_total_current_subTotal(self):
         for order in self:
             order.total_current_subTotal = sum(order.order_line.mapped('current_subTotal'))
+
+    @api.depends('amount_untaxed', 'order_line.product_cost', 'order_line.current_subTotal')
+    def _compute_original_profit_loss(self):
+        for order in self:
+            total_product_cost = sum(order.order_line.mapped('product_cost'))
+            if total_product_cost:
+                order.original_profit = order.total_current_subTotal - total_product_cost
+            else:
+                order.original_profit = order.amount_untaxed - total_product_cost
 
     @api.depends('current_market_price', 'discount')
     def _compute_current_net_price(self):
@@ -93,6 +104,10 @@ class SaleOrder(models.Model):
             order.validate_taxes_on_sales_order()
             if order.state == 'unfixed':
                 order.state = 'sale'
+                # Move current market price to old market price
+                order.old_market_price = order.market_price
+                # Update market price to current market price
+                order.market_price = order.current_market_price
             if order.partner_id in order.message_partner_ids:
                 continue
             order.message_subscribe([order.partner_id.id])
@@ -116,15 +131,17 @@ class SaleOrder(models.Model):
         for order in self:
             if order.state == 'sale':
                 order.state = 'unfixed'
+                # Revert market price to old market price
+                order.market_price = order.old_market_price
 
-    def action_open_set_price_wizard(self):
-        return {
-            'name': 'Set Current Market Price',
-            'type': 'ir.actions.act_window',
-            'res_model': 'set.current.market.price.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-        }
+    # def action_open_set_price_wizard(self):
+    #     return {
+    #         'name': 'Set Current Market Price',
+    #         'type': 'ir.actions.act_window',
+    #         'res_model': 'set.current.market.price.wizard',
+    #         'view_mode': 'form',
+    #         'target': 'new',
+    #     }
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
     rate = fields.Float(string="Rate", compute="_compute_rate", store=True)
@@ -146,6 +163,7 @@ class SaleOrderLine(models.Model):
         string="Current Unit Price",
         compute='_compute_current_price_unit',
         digits='Product Price',
+        default=0.0,
         store=True, readonly=False, required=True,
     )
     current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
