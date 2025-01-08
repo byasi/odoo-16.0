@@ -137,6 +137,7 @@
         <field name="original_profit" string="Profit"
                         attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
                         sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
+                        optional="hide"
                     />
           <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
           <field name="state"
@@ -166,6 +167,7 @@
            <field name="original_profit" string="Profit"
                         attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
                         sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
+                        optional="hide"
                     />
           <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
 
