@@ -128,9 +128,10 @@
             <attribute name="js_class">sales_move_list_controller</attribute>
         </xpath>
         <xpath expr="//tree/field[@name='activity_ids']" position="after">
-        <field name="gross_weight" string="Gross Weight" optional="show" />
+        <field name="gross_weight" string="Net Weight" optional="show" />
         <field name="product_cost" string="Product Cost" optional="show" />
         <field name="product_quality" string="Product Quality" optional="hide" />
+        <field name="rate" string="Unit Price" optional="show" />
          <field name="market_price" string="Market Price" optional="hide" />
          <field name="current_market_price" string="Current Market Price" optional="hide" />
          <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
@@ -161,10 +162,10 @@
             <attribute name="js_class">sales_move_list_controller</attribute>
         </xpath>
         <xpath expr="//tree/field[@name='activity_ids']" position="after">
-            <field name="gross_weight" string="Gross Weight" optional="show" />
+            <field name="gross_weight" string="Net Weight" optional="show" />
             <field name="product_cost" string="Product Cost" optional="show" />
             <field name="product_quality" string="Product Quality" optional="hide" />
-             <field name="rate" string="Price Unit" optional="show" />
+             <field name="rate" string="Unit Price" optional="show" />
             <field name="market_price" string="Market Price" optional="hide" />
             <field name="current_market_price" string="Current Market Price" optional="hide" />
             <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
