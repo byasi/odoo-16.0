@@ -29,13 +29,39 @@ class SaleOrder(models.Model):
     currency_field='market_price_currency',
     store=True
     )
-    
+
     total_current_subTotal = fields.Monetary(
         string="Total Current Subtotal",
         currency_field='currency_id',
         compute="_compute_total_current_subTotal",
         store=True,
     )
+    product_quality = fields.Float(
+        string="Product Quality",
+        compute="_compute_product_quality",
+        store=True
+    )
+    rate = fields.Float(string="Price Unit", compute="_compute_rate", store=True)
+
+    @api.depends('order_line.rate')
+    def _compute_rate(self):
+        for order in self:
+            lines = order.order_line.filtered(lambda line: line.rate)
+            if lines:
+                order.rate = sum(lines.mapped('rate')) / len(lines)
+            else:
+                order.rate = 0.0
+
+
+    @api.depends('order_line.inventory_product_quality')
+    def _compute_product_quality(self):
+        for order in self:
+            lines = order.order_line.filtered(lambda line: line.inventory_product_quality)
+            if lines:
+                order.product_quality = sum(lines.mapped('inventory_product_quality')) / len(lines)
+            else:
+                order.product_quality = 0.0
+
 
     @api.depends('order_line.current_subTotal')
     def _compute_total_current_subTotal(self):
@@ -152,7 +178,7 @@ class SaleOrderLine(models.Model):
     manual_item_quality = fields.Float(string="Manual Item Quality", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True)
-
+ 
     price_unit = fields.Float(
         string="Unit Price",
         compute='_compute_price_unit',
