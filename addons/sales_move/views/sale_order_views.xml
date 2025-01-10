@@ -1,188 +1,136 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-    <record id="view_order_form_inherit" model="ir.ui.view">
-        <field name="name">sale.order.form.inherit</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
-          <xpath expr="//header" position="inside">
-            <button name="action_convert_to_sales_order"
-                    string="Convert to Sales Order"
-                    type="object"
-                    states="unfixed"
-                    class="btn-primary"
-                />
-            <button name="action_back_to_unpicked"
-                    string="unfixed"
-                    type="object"
-                    states="sale"
-                    class="btn-secondary"/>
-        </xpath>
-         <xpath expr="//field[@name='state']" position="attributes">
-            <attribute name="widget">statusbar</attribute>
-            <attribute name="statusbar_visible">draft,unfixed,sale,done</attribute>
-        </xpath>
-            <xpath expr="//field[@name='partner_id']" position="after">
+        <record id="view_order_form_inherit" model="ir.ui.view">
+            <field name="name">sale.order.form.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//header" position="inside">
+                    <button name="action_convert_to_sales_order" string="Convert to Sales Order" type="object" states="unfixed" class="btn-primary" />
+                    <button name="action_back_to_unpicked" string="unfixed" type="object" states="sale" class="btn-secondary"/>
+                </xpath>
+                <xpath expr="//field[@name='state']" position="attributes">
+                    <attribute name="widget">statusbar</attribute>
+                    <attribute name="statusbar_visible">draft,unfixed,sale,done</attribute>
+                </xpath>
+                <xpath expr="//field[@name='partner_id']" position="after">
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
-                     <field name="original_profit" string="Profit"
-                        attrs="{'invisible': [('state', '!=', 'sale')]}"
-                    />
-            </xpath>
-             <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
-                    <field name="current_market_price" string="Current Market Price"
-                        attrs="{'invisible': [('state', '!=', 'unfixed')]}"
-                    />
-                     <field name="current_net_price" string="Current Net Price"
-                        attrs="{'invisible': [('state', '!=', 'unfixed')]}"
-                    />
-                    <field name="profit_loss" string="Profit/Loss"
-                        attrs="{'invisible': [('state', '!=', 'unfixed')]}"
-                    />
+                    <field name="original_profit" string="Profit" attrs="{'invisible': [('state', '!=', 'sale')]}" />
+                </xpath>
+                <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
+                    <field name="current_market_price" string="Current Market Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
+                    <field name="current_net_price" string="Current Net Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
+                    <field name="profit_loss" string="Profit/Loss" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
 
-            </xpath>
-             <xpath expr="//field[@widget='section_and_note_text']" position="after">
-                <field name="gross_weight" string="Gross Weight"
-                attrs="{
+                </xpath>
+                <xpath expr="//field[@widget='section_and_note_text']" position="after">
+                    <field name="gross_weight" string="Gross Weight" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
-                <field name="manual_gross_weight" string="Manual Gross Weight"
-                    attrs="{
+                    }" />
+                    <field name="manual_gross_weight" string="Manual Gross Weight" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
-                    }"
-                />
-                <field name="net_weight" string="Net Weight"
-                    attrs="{
+                    }" />
+                    <field name="net_weight" string="Net Weight" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
-                <field name="inventory_product_quality" string="Inventory Product Quality"
-                    attrs="{
+                    }" />
+                    <field name="inventory_product_quality" string="Inventory Product Quality" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
-                <field name="manual_item_quality" string="Manual Item Quality"
-                    attrs="{
+                    }" />
+                    <field name="manual_item_quality" string="Manual Item Quality" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
-                    }"
-                />
-                <field name="product_cost" string="Product Cost"
-                    optional="hide"
-                    attrs="{
+                    }" />
+                    <field name="product_cost" string="Product Cost" optional="hide" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
+                    }" />
 
 
-                <!-- <field name="current_price_unit" string="Current Price Unit"
-                        optional="show"
-                        attrs="{
+                    <!-- <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
                         'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                         'readonly': [('qty_delivered_method', '!=', 'manual')]
-                        }"
-                    /> -->
+                        }" /> -->
 
-            </xpath>
+                </xpath>
 
-            <xpath expr="//tree/field[@name='product_uom']" position="before">
-               <field name="current_rate" string="Current Rate"
-                    optional="hide"
-                    attrs="{
+                <xpath expr="//tree/field[@name='product_uom']" position="before">
+                    <field name="current_rate" string="Current Rate" optional="hide" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
-                <field name="rate" string="Rate"
-                    optional="hide"
-                    attrs="{
+                    }" />
+                    <field name="rate" string="Rate" optional="hide" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }"
-                />
-                <field name="current_price_unit" string="Current Price Unit"
-                        optional="show"
-                        attrs="{
+                    }" />
+                    <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
                         'column_invisible': [('parent.state', 'not in', ['unfixed'])],
                         'readonly': [('qty_delivered_method', '!=', 'manual')]
-                        }"
-                    />
-            </xpath>
+                        }" />
+                </xpath>
 
-        </field>
-    </record>
+            </field>
+        </record>
 
-    <record id="view_order_tree_inherit" model="ir.ui.view">
-        <field name="name">sale.order.tree.inherit</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_tree"/>
-        <field name="arch" type="xml">
-        <xpath expr="//tree" position="attributes">
-            <attribute name="js_class">sales_move_list_controller</attribute>
-        </xpath>
-        <xpath expr="//tree/field[@name='activity_ids']" position="after">
-        <field name="gross_weight" string="Gross Weight" optional="show" />
-        <field name="product_quality" string="Product Quality" optional="hide" />
-         <field name="market_price" string="Market Price" optional="hide" />
-        <field name="rate" string="Unit Price" optional="show" />
-         <field name="current_market_price" string="Current Market Price" optional="hide" />
-         <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
-        <field name="product_cost" string="Product Cost" optional="show" />
+        <record id="view_order_tree_inherit" model="ir.ui.view">
+            <field name="name">sale.order.tree.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//tree" position="attributes">
+                    <attribute name="js_class">sales_move_list_controller</attribute>
+                </xpath>
+                <xpath expr="//tree/field[@name='activity_ids']" position="after">
+                    <field name="gross_weight" sum="Gross Weight" string="Gross Weight" optional="show" />
+                    <field name="product_quality" string="Product Quality" optional="hide" />
+                    <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
+                    <field name="market_price" string="Market Price" optional="hide" />
+                    <field name="rate" string="Unit Price" optional="show" />
+                    <field name="current_market_price" string="Current Market Price" optional="hide" />
+                    <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+                    <field name="product_cost" string="Product Cost" optional="show" />
 
-        </xpath>
-         <xpath expr="//tree/field[@name='invoice_status']" position="before">
-        <field name="original_profit" string="Profit"
-                        attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
-                        sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
-                        optional="hide"
-                    />
-          <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
-          <field name="state"
-                decoration-success="state == 'sale' or state == 'done'"
-                decoration-info="state == 'draft' or state == 'sent'"
-                widget="badge" optional="show"/>
+                </xpath>
+                <xpath expr="//tree/field[@name='invoice_status']" position="before">
+                    <field name="original_profit" string="Profit" attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}" sum="Profit or Loss(purchase cost and sale cost)" widget="monetary" optional="hide" />
+                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+                    <field name="state" decoration-success="state == 'sale' or state == 'done'" decoration-info="state == 'draft' or state == 'sent'" widget="badge" optional="show"/>
 
-        </xpath>
-        </field>
-    </record>
+                </xpath>
+            </field>
+        </record>
 
-     <record id="view_quotation_tree_inherit" model="ir.ui.view">
-        <field name="name">sale.order.tree.inherit</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_quotation_tree"/>
-        <field name="arch" type="xml">
-        <xpath expr="//tree" position="attributes">
-            <attribute name="js_class">sales_move_list_controller</attribute>
-        </xpath>
-        <xpath expr="//tree/field[@name='activity_ids']" position="after">
-            <field name="gross_weight" string="Gross Weight" optional="show" />
-            <field name="net_weight" string="Net Weight" optional="show" />
-            <field name="product_quality" string="Product Quality" optional="hide" />
-             <field name="rate" string="Unit Price" optional="show" />
-            <field name="market_price" string="Market Price" optional="hide" />
+        <record id="view_quotation_tree_inherit" model="ir.ui.view">
+            <field name="name">sale.order.tree.inherit</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_quotation_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//tree" position="attributes">
+                    <attribute name="js_class">sales_move_list_controller</attribute>
+                </xpath>
+                <xpath expr="//tree/field[@name='activity_ids']" position="after">
+                    <field name="gross_weight" sum="Gross Weight" string="Gross Weight" optional="show" />
+                    <field name="product_quality" string="Product Quality" optional="hide" />
+                    <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
+                    <field name="market_price" string="Market Price" optional="hide" />
+                    <field name="rate" string="Unit Price" optional="show" />
 
-        </xpath>
-          <xpath expr="//tree/field[@name='state']" position="before">
-           <field name="current_market_price" string="Current Market Price" optional="hide" />
-            <field name="current_rate" string="Current Unit Price" optional="show" />
-            <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
-            <field name="product_cost" string="Product Cost" optional="show" />
-           <field name="original_profit" string="Profit"
-                        attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
-                        sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"
-                        optional="hide"
-                    />
-          <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+                </xpath>
+                <xpath expr="//tree/field[@name='state']" position="before">
+                    <field name="current_market_price" string="Current Market Price" optional="hide" />
+                    <field name="current_rate" string="Current Unit Price" optional="show" />
+                    <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+                    <field name="product_cost" string="Purchase Cost" sum="Purchase Cost" optional="show" />
+                    <field name="original_profit" string="Profit" attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}" sum="Profit or Loss(purchase cost and sale cost)" widget="monetary" optional="hide" />
+                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
 
-        </xpath>
-        </field>
-    </record>
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>
