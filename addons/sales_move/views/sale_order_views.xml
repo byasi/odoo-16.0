@@ -128,13 +128,13 @@
             <attribute name="js_class">sales_move_list_controller</attribute>
         </xpath>
         <xpath expr="//tree/field[@name='activity_ids']" position="after">
-        <field name="gross_weight" string="Net Weight" optional="show" />
-        <field name="product_cost" string="Product Cost" optional="show" />
+        <field name="gross_weight" string="Gross Weight" optional="show" />
         <field name="product_quality" string="Product Quality" optional="hide" />
-        <field name="rate" string="Unit Price" optional="show" />
          <field name="market_price" string="Market Price" optional="hide" />
+        <field name="rate" string="Unit Price" optional="show" />
          <field name="current_market_price" string="Current Market Price" optional="hide" />
          <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+        <field name="product_cost" string="Product Cost" optional="show" />
 
         </xpath>
          <xpath expr="//tree/field[@name='invoice_status']" position="before">
@@ -162,16 +162,18 @@
             <attribute name="js_class">sales_move_list_controller</attribute>
         </xpath>
         <xpath expr="//tree/field[@name='activity_ids']" position="after">
-            <field name="gross_weight" string="Net Weight" optional="show" />
-            <field name="product_cost" string="Product Cost" optional="show" />
+            <field name="gross_weight" string="Gross Weight" optional="show" />
+            <field name="net_weight" string="Net Weight" optional="show" />
             <field name="product_quality" string="Product Quality" optional="hide" />
              <field name="rate" string="Unit Price" optional="show" />
             <field name="market_price" string="Market Price" optional="hide" />
-            <field name="current_market_price" string="Current Market Price" optional="hide" />
-            <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
 
         </xpath>
           <xpath expr="//tree/field[@name='state']" position="before">
+           <field name="current_market_price" string="Current Market Price" optional="hide" />
+            <field name="current_rate" string="Current Unit Price" optional="show" />
+            <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
+            <field name="product_cost" string="Product Cost" optional="show" />
            <field name="original_profit" string="Profit"
                         attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}"
                         sum="Profit or Loss(purchase cost and sale cost)" widget="monetary"

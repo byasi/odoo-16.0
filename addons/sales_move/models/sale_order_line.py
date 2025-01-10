@@ -44,6 +44,26 @@ class SaleOrder(models.Model):
     rate = fields.Float(string="Price Unit", compute="_compute_rate", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
+    net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
+    current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+
+    @api.depends('order_line.current_rate')
+    def _compute_current_rate(self):
+        for order in self:
+            lines = order.order_line.filtered(lambda line: line.current_rate)
+            if lines:
+                order.current_rate = sum(lines.mapped('current_rate')) / len(lines)
+            else:
+                order.current_rate = 0.0
+   
+    @api.depends('order_line.net_weight')
+    def _compute_net_weight(self):
+        for order in self:
+            lines = order.order_line.filtered(lambda line: line.net_weight)
+            if lines:
+                order.net_weight = sum(lines.mapped('net_weight')) / len(lines)
+            else:
+                order.net_weight = 0.0
 
     @api.depends('order_line.gross_weight')
     def _compute_gross_weight(self):
