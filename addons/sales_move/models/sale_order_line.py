@@ -46,6 +46,22 @@ class SaleOrder(models.Model):
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
     current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+    selected_payment_ids = fields.Many2many(
+        'account.payment',
+        string="Customer Payment",
+        domain="[('partner_id', '=', partner_id)]",
+        help="Select a payment associated with the customer."
+    )
+    payment_amount = fields.Monetary(
+        string="Paid Unfixed Amount",
+        compute="_compute_payment_amount",
+        currency_field='currency_id',
+        store=True
+    )
+    @api.depends('selected_payment_ids')
+    def _compute_payment_amount(self):
+        for record in self:
+            record.payment_amount = sum(record.selected_payment_ids.mapped('amount'))
 
     @api.depends('order_line.current_rate')
     def _compute_current_rate(self):
@@ -55,7 +71,7 @@ class SaleOrder(models.Model):
                 order.current_rate = sum(lines.mapped('current_rate')) / len(lines)
             else:
                 order.current_rate = 0.0
-   
+
     @api.depends('order_line.net_weight')
     def _compute_net_weight(self):
         for order in self:
@@ -118,7 +134,7 @@ class SaleOrder(models.Model):
                 order.original_profit = order.amount_total - total_product_cost
             else:
                 order.original_profit = 0.0
-                
+
     @api.depends('current_market_price', 'discount')
     def _compute_current_net_price(self):
         for order in self:

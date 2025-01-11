@@ -19,6 +19,9 @@
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
+                    <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
+                    <field name="payment_amount" string="Paid Unfixed Amount"/>
+
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', '!=', 'sale')]}" />
                 </xpath>
                 <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
