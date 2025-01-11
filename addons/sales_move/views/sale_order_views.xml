@@ -21,6 +21,7 @@
                     <field name="net_price" string="Net Price"/>
                     <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
                     <field name="payment_amount" string="Paid Unfixed Amount"/>
+                    <field name="unfixed_balance" string="Balance"/>
 
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', '!=', 'sale')]}" />
                 </xpath>

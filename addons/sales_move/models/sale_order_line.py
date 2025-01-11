@@ -58,10 +58,33 @@ class SaleOrder(models.Model):
         currency_field='currency_id',
         store=True
     )
+    unfixed_balance = fields.Monetary(
+        string="Paid Unfixed Amount",
+        compute="_compute_unfixed_balance",
+        currency_field='currency_id',
+        store=True
+    )
+    @api.depends('amount_total', 'payment_amount')
+    def _compute_unfixed_balance(self):
+        for order in self:
+            order.unfixed_balance = abs(order.amount_total - order.payment_amount)
+
     @api.depends('selected_payment_ids')
     def _compute_payment_amount(self):
         for record in self:
-            record.payment_amount = sum(record.selected_payment_ids.mapped('amount'))
+            total_amount = 0.0
+            for payment in record.selected_payment_ids:
+                if payment.currency_id != record.currency_id:
+                    # Convert payment amount to the base currency (or the currency of the record)
+                    total_amount += payment.currency_id._convert(
+                        payment.amount,
+                        record.currency_id,
+                        record.company_id,
+                        payment.date or fields.Date.context_today(record)
+                    )
+                else:
+                    total_amount += payment.amount
+            record.payment_amount = total_amount
 
     @api.depends('order_line.current_rate')
     def _compute_current_rate(self):
