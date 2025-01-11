@@ -108,15 +108,17 @@ class SaleOrder(models.Model):
         for order in self:
             order.total_current_subTotal = sum(order.order_line.mapped('current_subTotal'))
 
-    @api.depends('amount_untaxed', 'order_line.product_cost', 'order_line.current_subTotal')
+    @api.depends('amount_total', 'order_line.product_cost', 'order_line.current_subTotal')
     def _compute_original_profit_loss(self):
         for order in self:
             total_product_cost = sum(order.order_line.mapped('product_cost'))
-            if total_product_cost:
+            if total_product_cost and order.total_current_subTotal:
                 order.original_profit = order.total_current_subTotal - total_product_cost
+            elif total_product_cost and order.amount_total:
+                order.original_profit = order.amount_total - total_product_cost
             else:
-                order.original_profit = order.amount_untaxed - total_product_cost
-
+                order.original_profit = 0.0
+                
     @api.depends('current_market_price', 'discount')
     def _compute_current_net_price(self):
         for order in self:
