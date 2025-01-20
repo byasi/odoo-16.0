@@ -1,6 +1,7 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 import math
+from datetime import datetime
 
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"
@@ -11,14 +12,49 @@ class StockMoveLine(models.Model):
         store=True
     )
     # product_quality = fields.Float(string="Product Quality", store=True)
-    
     lot_product_quality = fields.Float(string="Product Quality", compute="_compute_lot_product_quality", store=True)  # from Inventory
     lot_first_process_wt = fields.Float(string="First Process Wt", compute="_compute_lot_first_process_wt", store=True) # from Inventory
     lot_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_lot_purchase_cost", store=True)
     mo_product_quality = fields.Float(string="Product Quality ", compute="_fetch_lot_values", store=True)  # from  manufacturing
     mo_first_process_wt = fields.Float(string="First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
     mo_purchase_cost = fields.Float(string="Purchase Cost", compute="_fetch_lot_values", store=True)
+    qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
+    product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_quantity", store=True)
+    average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quantity", store=True)
+    product_cost = fields.Float(string="Product Cost", compute="_compute_product_quantity", store=True)
+    lot_name = fields.Char(string="Lot Name", copy=False)
 
+    @api.model
+    def create(self, vals):
+        if not vals.get('lot_name'):
+            today = datetime.today()
+            date_prefix = today.strftime('%d%b%y').upper()  # e.g., 20JAN25
+            # Find the highest sequence for the current date prefix
+            last_lot = self.search([('lot_name', 'like', f"{date_prefix}-%")], order="lot_name desc", limit=1)
+            if last_lot:
+                # Extract and increment the sequence number
+                last_sequence = int(last_lot.lot_name.split('-')[-1])
+                new_sequence = f"{last_sequence + 1:03d}"
+            else:
+                # Start the sequence at 001 if no lots exist for the day
+                new_sequence = "001"
+            # Generate the lot name
+            vals['lot_name'] = f"{date_prefix}-{new_sequence}"
+        return super(StockMoveLine, self).create(vals)
+
+    @api.constrains('lot_name')
+    def _check_lot_name_unique(self):
+        for record in self:
+            if record.lot_name:
+                # Search for existing lots with the same name
+                existing_lots = self.search([
+                    ('lot_name', '=', record.lot_name),
+                    ('id', '!=', record.id)  # Exclude the current record from the search
+                ])
+                if existing_lots:
+                    raise ValidationError(_(
+                        "The Lot Name '%s' already exists. Please choose a different name." % record.lot_name
+                    ))
 
     @api.depends('move_id.product_quality')
     def _compute_lot_product_quality(self):
@@ -57,7 +93,7 @@ class StockMoveLine(models.Model):
                 line.mo_purchase_cost = 0.0
 
 
-    qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
+
 
     @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
     def _compute_qty_done(self):
@@ -85,9 +121,6 @@ class StockMoveLine(models.Model):
             else:
                 line.weighted_average_quality = 0.0
 
-    product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_quantity", store=True)
-    average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quantity", store=True)
-    product_cost = fields.Float(string="Product Cost", compute="_compute_product_quantity", store=True)
 
     @api.depends('lot_id')
     def _compute_product_quantity(self):
