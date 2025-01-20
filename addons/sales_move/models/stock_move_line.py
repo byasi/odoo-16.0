@@ -25,8 +25,9 @@ class StockMoveLine(models.Model):
     lot_name = fields.Char(string="Lot Name", copy=False)
 
     @api.model
-    def create(self, vals):
-        if not vals.get('lot_name'):
+    def default_get(self, fields_list):
+        vals = super(StockMoveLine, self).default_get(fields_list)
+        if 'lot_name' in fields_list:
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 20JAN25
             # Find the highest sequence for the current date prefix
@@ -40,7 +41,7 @@ class StockMoveLine(models.Model):
                 new_sequence = "001"
             # Generate the lot name
             vals['lot_name'] = f"{date_prefix}-{new_sequence}"
-        return super(StockMoveLine, self).create(vals)
+        return vals
 
     @api.constrains('lot_name')
     def _check_lot_name_unique(self):
