@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.float_utils import float_compare, float_is_zero, float_round
 import math
@@ -207,8 +207,35 @@ class PurchaseOrderLine(models.Model):
     actual_dd = fields.Float(string="DD", compute="_compute_actual_dd", store=True)
     manual_dd = fields.Float(string="DD", store=True)
     UGX_currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.UGX').id)
+    product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
+    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality", store=True, readonly=False)
+    manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
+    original_product_quality = fields.Float(string="Original Product Quality", compute="_compute_original_product_quality", readonly=True)
+    product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference", readonly=True)
+    price_subtotal = fields.Monetary(compute='_compute_amount', string='Subtotal', store=True)
+    price_total = fields.Monetary(compute='_compute_amount', string='Total', store=True)
+    price_tax = fields.Float(compute='_compute_amount', string='Tax', store=True)
+    price_unit = fields.Float(string='Unit Price', required=True, digits='Product Price', compute="_compute_price_unit", readonly=False, store=True)
+    product_qty = fields.Float(string='Quantity', required=True, compute='_compute_product_qty', store=True, readonly=False)
+    product_uom = fields.Many2one('uom.uom', compute='_compute_product_uom', store=True, readonly=False)
     # custom_round_down(2302.842/dd)-219.318
 
+    @api.constrains('first_process_wt', 'second_process_wt')
+    def _check_second_process_wt_mandatory(self):
+        for record in self:
+            if record.first_process_wt > 0 and record.second_process_wt <= 0:
+                raise ValidationError(_(
+                    " Second Process Wt must be greater than zero."
+                ))
+
+    @api.constrains('first_process_wt', 'second_process_wt', 'product_quality')
+    def _check_product_quality_range(self):
+        for record in self:
+            if record.first_process_wt > 0 and record.second_process_wt > 0:
+                if not (60 <= record.product_quality <= 98):
+                    raise ValidationError(_(
+                        "Product Quality must be between 60 and 98."
+                    ))
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
     def _compute_dd(self):
         for line in self:
@@ -336,11 +363,6 @@ class PurchaseOrderLine(models.Model):
                 line.transfer_rate = 0.0
 
 
-    product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
-    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality", store=True, readonly=False)
-    manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
-    original_product_quality = fields.Float(string="Original Product Quality", compute="_compute_original_product_quality", readonly=True)
-    product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference", readonly=True)
 
     @api.depends('manual_dd', 'manual_product_quality')
     def _compute_manual_product_quality(self):
@@ -453,15 +475,6 @@ class PurchaseOrderLine(models.Model):
                     line.original_rate = 0.0
             else:
                 line.original_rate = 0.0
-
-
-    price_subtotal = fields.Monetary(compute='_compute_amount', string='Subtotal', store=True)
-    price_total = fields.Monetary(compute='_compute_amount', string='Total', store=True)
-    price_tax = fields.Float(compute='_compute_amount', string='Tax', store=True)
-    price_unit = fields.Float(string='Unit Price', required=True, digits='Product Price', compute="_compute_price_unit", readonly=False, store=True)
-    product_qty = fields.Float(string='Quantity', required=True, compute='_compute_product_qty', store=True, readonly=False)
-
-    product_uom = fields.Many2one('uom.uom', compute='_compute_product_uom', store=True, readonly=False)
 
     @api.depends('order_id.material_unit_input')
     def _compute_product_uom(self):
