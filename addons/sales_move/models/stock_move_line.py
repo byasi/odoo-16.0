@@ -25,11 +25,31 @@ class StockMoveLine(models.Model):
     lot_name = fields.Char(string="Lot Name", copy=False)
 
     @api.model
+    def create(self, vals):
+        """Override the create method to ensure unique lot_name for each record."""
+        if not vals.get('lot_name'):  # Generate only if no lot_name is provided
+            today = datetime.today()
+            date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
+            # Find the highest sequence for the current date prefix
+            last_lot = self.search([('lot_name', 'like', f"{date_prefix}-%")], order="lot_name desc", limit=1)
+            if last_lot:
+                # Extract and increment the sequence number
+                last_sequence = int(last_lot.lot_name.split('-')[-1])
+                new_sequence = f"{last_sequence + 1:03d}"
+            else:
+                # Start the sequence at 001 if no lots exist for the day
+                new_sequence = "001"
+            # Generate the lot name
+            vals['lot_name'] = f"{date_prefix}-{new_sequence}"
+        return super(StockMoveLine, self).create(vals)
+
+    @api.model
     def default_get(self, fields_list):
+        """Pre-fill default values when adding a new line."""
         vals = super(StockMoveLine, self).default_get(fields_list)
         if 'lot_name' in fields_list:
             today = datetime.today()
-            date_prefix = today.strftime('%d%b%y').upper()  # e.g., 20JAN25
+            date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
             # Find the highest sequence for the current date prefix
             last_lot = self.search([('lot_name', 'like', f"{date_prefix}-%")], order="lot_name desc", limit=1)
             if last_lot:
