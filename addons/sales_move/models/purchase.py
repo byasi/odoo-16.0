@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     currency_id = fields.Many2one('res.currency', string="Currency", invisible=True)
-    market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
+    market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency', required=True)
     product_price = fields.Monetary(string="Product Price")
     deduction_head = fields.Float(string="Deduction Head")
     additions = fields.Float(string="Additions")
@@ -28,7 +28,8 @@ class PurchaseOrder(models.Model):
     unit_convention = fields.Many2one('uom.uom',string="Unit Convention")
     x_factor = fields.Float(string="Xfactor", default=92)
     net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total", store=True)
-    deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency', related="total_deductions")
+    # deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency', related="total_deductions")
+    deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency')
     company_currency_id = fields.Many2one(
         'res.currency', related='company_id.currency_id', readonly=True, string="Company Currency"
     )
@@ -40,8 +41,29 @@ class PurchaseOrder(models.Model):
     partner_zip = fields.Char(related='partner_id.zip', string="ZIP", readonly=True)
     partner_country = fields.Many2one(related='partner_id.country_id', string="Country", readonly=True)
     partner_contact = fields.Char(related='partner_id.phone', string="Contact", readonly=True)
-    
+    total_with_weights = fields.Float(
+        string='Total RM',
+        compute='_compute_totals',
+        store=True
+    )
+    total_without_weights = fields.Float(
+        string='Total TA',
+        compute='_compute_totals',
+        store=True
+    )
 
+    @api.depends('order_line', 'order_line.first_process_wt', 'order_line.second_process_wt', 'order_line.price_subtotal')
+    def _compute_totals(self):
+        for order in self:
+            total_with_weights = 0
+            total_without_weights = 0
+            for line in order.order_line:
+                if line.first_process_wt > 0 and line.second_process_wt > 0:
+                    total_with_weights += line.price_subtotal
+                else:
+                    total_without_weights += line.price_subtotal
+            order.total_with_weights = total_with_weights
+            order.total_without_weights = total_without_weights
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100

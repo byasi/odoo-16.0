@@ -316,7 +316,7 @@ class SaleOrderLine(models.Model):
     def _compute_rate(self):
         for line in self:
             if line.order_id.net_price:
-                line.rate =  self.custom_round_down(line.order_id.net_price/31.1034768)
+                line.rate =  line.order_id.net_price/31.1034768
             else:
                 line.rate = 0.0
 
@@ -334,9 +334,9 @@ class SaleOrderLine(models.Model):
         for line in self:
             quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
             if line.manual_gross_weight:
-                line.net_weight = line.custom_round_down(line.manual_gross_weight * quality / 100)
+                line.net_weight = line.manual_gross_weight * quality / 100
             else:
-                line.net_weight = line.custom_round_down(line.gross_weight * quality / 100)
+                line.net_weight = line.gross_weight * quality / 100
 
 
     @api.depends('qty_delivered', 'product_id')

@@ -45,7 +45,7 @@
 
                  <xpath expr="//field[@name='company_id']" position="after">
                     <field name="market_price_currency" string="Market Price Currency"/>
-                    <field name="market_price" string="Market Price"/>
+                    <field name="market_price" string="Market Price" required="1"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
                     <field name="material_unit" string="Market Price Unit"/>
@@ -100,25 +100,33 @@
                                 <field name="amount_tax" string="Tax" readonly="1"/>
                             </td>
                         </tr>
-                        <!-- <tr>
+                        <tr>
                             <td class="o_td_label" style="padding-right: 20px;">
-                                <span class="o_form_label o_tax_total_label">Deduction Currency</span>
+                                <span class="o_form_label o_tax_total_label">Total RM</span>
                             </td>
                             <td class="o_list_monetary">
-                                <field name="deduction_currency" string="Deduction Currency"/>
+                                <field name="total_with_weights" string="Total RM"/>
                             </td>
-                        </tr> -->
+                        </tr>
+                          <tr>
+                            <td class="o_td_label" style="padding-right: 20px;">
+                                <span class="o_form_label o_tax_total_label">Total TA</span>
+                            </td>
+                            <td class="o_list_monetary">
+                                <field name="total_without_weights" string="Total TA"/>
+                            </td>
+                        </tr>
                         <tr>
                             <td class="o_td_label" style="padding-right: 20px;">
                                 <span class="o_form_label o_tax_total_label">Deductions</span>
                             </td>
                             <td class="o_list_monetary">
-                                <field name="deductions" string="Deductions" readonly="1"/>
+                                <field name="deductions" string="Deductions" />
                             </td>
                         </tr>
 
                         <tr>
-                            <td class="o_td_label" style="padding-right: 50px;">
+                            <td class="o_td_label" style="padding-right: 100px;">
                                 <span class="o_form_label o_tax_total_label">Net Payable</span>
                             </td>
                             <td class="o_list_monetary">
