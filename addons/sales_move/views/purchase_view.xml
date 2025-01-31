@@ -1,40 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-      <record id="view_purchase_order_form_inherit" model="ir.ui.view">
-             <field name="name">purchase.order.form</field>
+        <record id="view_purchase_order_form_inherit" model="ir.ui.view">
+            <field name="name">purchase.order.form</field>
             <field name="model">purchase.order</field>
             <field name="inherit_id" ref="purchase.purchase_order_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//notebook" position="inside">
-                    <page string="Deductions" name="Deductions" >
-                            <field name="deduction_lines">
-                                <tree editable="bottom" class="o_list_view">
-                                    <field name="account_code"/>
-                                    <field name="comment"/>
-                                    <field name="currency_id"/>
-                                    <field name="foreign_currency_amount"/>
-                                    <field name="transaction_currency_amount"/>
-                                </tree>
-                            </field>
-                            <div style="width: 100%; text-align: right;">
-                                <table style="width: auto; float: right;">
-                                    <tbody>
-                                        <tr>
-                                            <td class="o_td_label" style="padding-right: 40px;" >
-                                                <span class="o_form_label o_tax_total_label">Total Deductions</span>
-                                            </td>
-                                            <td class="o_list_monetary">
-                                                <field name="total_deductions" string="Total Deductions" readonly="1"/>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                    <page string="Deductions" name="Deductions">
+                        <field name="deduction_lines">
+                            <tree editable="bottom" class="o_list_view">
+                                <field name="account_code"/>
+                                <field name="comment"/>
+                                <field name="currency_id"/>
+                                <field name="foreign_currency_amount"/>
+                                <field name="transaction_currency_amount"/>
+                            </tree>
+                        </field>
+                        <div style="width: 100%; text-align: right;">
+                            <table style="width: auto; float: right;">
+                                <tbody>
+                                    <tr>
+                                        <td class="o_td_label" style="padding-right: 40px;">
+                                            <span class="o_form_label o_tax_total_label">Total Deductions</span>
+                                        </td>
+                                        <td class="o_list_monetary">
+                                            <field name="total_deductions" string="Total Deductions" readonly="1"/>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </page>
                 </xpath>
                 <xpath expr="//field[@name='partner_id']" position="after">
-            <!-- Add vendor address fields -->
+                    <!-- Add vendor address fields -->
                     <!-- <field name="partner_street" string="Street" readonly="1"/> -->
                     <!-- <field name="partner_city" string="City" readonly="1"/> -->
                     <field name="partner_contact" string="Phone" readonly="1"/>
@@ -43,7 +43,7 @@
 
                 <xpath expr="//field[@name='currency_id']" position="replace"/>
 
-                 <xpath expr="//field[@name='company_id']" position="after">
+                <xpath expr="//field[@name='company_id']" position="after">
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price" required="1"/>
                     <field name="discount" string="Discount/additions"/>
@@ -51,7 +51,7 @@
                     <field name="material_unit" string="Market Price Unit"/>
                     <field name="material_unit_input" string="Material Unit Input"/>
                     <!-- <field name="gross_weight" string="Gross Weight"/> -->
-                     <!-- <field name="first_process_wt" string="First Process Weight" /> -->
+                    <!-- <field name="first_process_wt" string="First Process Weight" /> -->
                     <!-- <field name="second_process_wt" string="Second Process Weight"/> -->
                     <field name="formula" string="Formula" invisible="1" />
                 </xpath>
@@ -65,7 +65,7 @@
                     <field name="transaction_price_per_unit" string="Transaction Price per Unit"/>
                     <field name="x_factor" string="Xfactor"/>
                     <!-- <field name="lot_no" string="Lot No" /> -->
-                     <!-- <field name="selected_product_id" string="Select Product"/> -->
+                    <!-- <field name="selected_product_id" string="Select Product"/> -->
                 </xpath>
 
                 <xpath expr="//field[@name='product_qty']" position="before">
@@ -82,63 +82,74 @@
                     <field name="actual_dd" string="DD" optional="hide"/>
                     <field name="manual_dd" string="manual_DD" optional="hide"/>
                 </xpath>
-                 <xpath expr="//field[@name='product_qty']" position="after">
-                  <field name="original_rate" string="Original Price" optional="hide"/>
+                <xpath expr="//field[@name='product_qty']" position="after">
+                    <field name="original_rate" string="Original Price" optional="hide"/>
                     <field name="rate" string="Rate" optional="hide"/>
                     <field name="price_currency" string="Price Currency" optional="hide"/>
                     <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
-            <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
-                <table class="oe_right">
-                    <tbody>
-                         <tr attrs="{'invisible': [('amount_tax', '=', 0.0)]}">
-                            <td class="o_td_label" style="padding-right: 20px;">
-                                <span class="o_form_label o_tax_total_label">Tax</span>
-                            </td>
-                            <td class="o_list_monetary">
-                                <field name="amount_tax" string="Tax" readonly="1"/>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="o_td_label" style="padding-right: 20px;">
-                                <span class="o_form_label o_tax_total_label">Total RM</span>
-                            </td>
-                            <td class="o_list_monetary">
-                                <field name="total_with_weights" string="Total RM"/>
-                            </td>
-                        </tr>
-                          <tr>
-                            <td class="o_td_label" style="padding-right: 20px;">
-                                <span class="o_form_label o_tax_total_label">Total TA</span>
-                            </td>
-                            <td class="o_list_monetary">
-                                <field name="total_without_weights" string="Total TA"/>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="o_td_label" style="padding-right: 20px;">
-                                <span class="o_form_label o_tax_total_label">Deductions</span>
-                            </td>
-                            <td class="o_list_monetary">
-                                <field name="deductions" string="Deductions" />
-                            </td>
-                        </tr>
+                <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
+                    <table class="oe_right">
+                        <tbody>
+                            <tr attrs="{'invisible': [('amount_tax', '=', 0.0)]}">
+                                <td class="o_td_label" style="padding-right: 20px;">
+                                    <span class="o_form_label o_tax_total_label">Tax</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="amount_tax" string="Tax" readonly="1"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="o_td_label" style="padding-right: 20px;">
+                                    <span class="o_form_label o_tax_total_label">Total RM</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="total_with_weights" string="Total RM"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="o_td_label" style="padding-right: 20px;">
+                                    <span class="o_form_label o_tax_total_label">Total TA</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="total_without_weights" string="Total TA"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="o_td_label" style="padding-right: 20px;">
+                                    <span class="o_form_label o_tax_total_label">Deductions</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="deductions" string="Deductions" />
+                                </td>
+                            </tr>
 
-                        <tr>
-                            <td class="o_td_label" style="padding-right: 100px;">
-                                <span class="o_form_label o_tax_total_label">Net Payable</span>
-                            </td>
-                            <td class="o_list_monetary">
-                                <field name="amount_total" string="Total" readonly="1"/>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </xpath>
+                            <tr>
+                                <td class="o_td_label" style="padding-right: 100px;">
+                                    <span class="o_form_label o_tax_total_label">Net Payable</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="amount_total" string="Total" readonly="1"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </xpath>
 
 
             </field>
-      </record>
+        </record>
+        <record id="view_purchase_order_kpis_tree_inherit" model="ir.ui.view">
+            <field name="name">purchase.order.tree.inherit.purchase.order.tree</field>
+            <field name="model">purchase.order</field>
+            <field name="inherit_id" ref="purchase.purchase_order_kpis_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='amount_untaxed']" position="before">
+                    <field name="total_with_weights" string="Total Rm" sum="Total RM" optional="hide" />
+                    <field name="total_without_weights" string="Total TA" sum="Total TA and SMS" optional="hide"/>
+                </xpath>
+            </field>
+        </record>
     </data>
 </odoo>

@@ -1,5 +1,14 @@
-
 from odoo import  models, fields, api, _
+
+class AccountMove(models.Model):
+    _inherit = "account.move"
+    invoice_date = fields.Date(
+        string="Invoice/Bill Date",
+        readonly=True,
+        states={'draft': [('readonly', False)]},
+        index=True,
+        copy=False,
+        default=fields.Date.context_today)
 
 class AccountPayment(models.Model):
     _inherit = "account.payment"
@@ -51,6 +60,17 @@ class AccountPayment(models.Model):
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
     currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.USD').id)
+    currency_rate = fields.Float(
+        string="Currency Rate",
+        compute='_compute_currency_rate',
+        store=True,
+        readonly=False
+    )
+
+    @api.depends('currency')
+    def _compute_currency_rate(self):
+        for record in self:
+            record.currency_rate = record.currency.rate if record.currency else 1.0
 
     def open_currency(self):
         return {
