@@ -86,3 +86,19 @@ class CurrencyRate(models.Model):
 
     name = fields.Datetime(string='Date', required=True, index=True,
         default=fields.Datetime.now)
+
+
+class ResPartner(models.Model):
+    _inherit = 'res.partner'
+
+    property_account_receivable_id = fields.Many2one(
+        'account.account',
+        string="Account Receivable",
+        default=lambda self: self.env['account.account'].search([('code', '=', '121000')], limit=1),
+    )
+
+    property_account_payable_id = fields.Many2one(
+        'account.account',
+        string="Account Payable",
+        default=lambda self: self.env['account.account'].search([('code', '=', '211000')], limit=1),
+    )
