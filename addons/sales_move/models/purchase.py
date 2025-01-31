@@ -215,6 +215,15 @@ class PurchaseOrder(models.Model):
             order.total_deductions = total
 # End of deductions tab
 
+    @api.constrains('market_price')
+    def _check_market_price(self):
+        for order in self:
+            if float_is_zero(order.market_price, precision_digits=2):
+                raise ValidationError(_(
+                    "Market Price is required and cannot be zero.\n"
+                    "Please set a valid Market Price before saving."
+                ))
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
@@ -558,6 +567,23 @@ class PurchaseOrderLine(models.Model):
                 'price_tax': amount_tax,
                 'price_total': subtotal + amount_tax,
             })
+
+    @api.constrains('product_qty', 'price_unit', 'price_subtotal')
+    def _check_price_with_quantity(self):
+        for line in self:
+            if line.product_qty >= 0 and (float_is_zero(line.price_unit, precision_digits=2) or float_is_zero(line.price_subtotal, precision_digits=2)):
+                raise ValidationError(_(
+                    "Cannot save purchase order with zero price\n"
+                    "Product: %s\n"
+                    "Quantity: %s\n"
+                    "Price Unit: %s\n"
+                    "Subtotal: %s"
+                ) % (
+                    line.product_id.display_name,
+                    line.product_qty,
+                    line.price_unit,
+                    line.price_subtotal
+                ))
 
 class PurchaseOrderDeductions(models.Model):
     _name = 'purchase.order.deductions'
