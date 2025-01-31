@@ -251,7 +251,7 @@ class SaleOrder(models.Model):
     #     }
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
-    rate = fields.Float(string="Rate", compute="_compute_rate", digits=(16, 4), store=True)
+    rate = fields.Float(string="Rate", compute="_compute_rate", digits=(16, 3), store=True)
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
     manual_gross_weight = fields.Float(string="Manual Gross Weight", store=True)
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
@@ -264,7 +264,7 @@ class SaleOrderLine(models.Model):
         string="Unit Price",
         compute='_compute_price_unit',
         # digits='Product Price',
-        digits=(16, 4),
+        digits=(16, 3),
         store=True, readonly=False, required=True, precompute=True)
 
     current_price_unit = fields.Float(
