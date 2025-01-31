@@ -45,18 +45,42 @@ class AccountPayment(models.Model):
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
         """
-        When the currency is changed, convert the amount to the selected currency.
+        When the currency is changed, convert the amount between currencies.
+        Handles conversion both from USD to other currencies and vice versa.
         """
-        if self.currency_id and self.amount:
-            original_currency = self.env.ref('base.USD')
-            if self.currency_id != original_currency:
-                # Convert from original currency to the selected currency
-                self.amount = original_currency._convert(
-                    self.amount,
-                    self.currency_id,
-                    self.env.user.company_id,
-                    fields.Date.context_today(self)
-                )
+        if not (self.currency_id and self.amount and self.sales_order_id):
+            return
+
+        base_currency = self.env.ref('base.USD')
+
+        # If no previous currency (new record), use base currency
+        from_currency = self._origin.currency_id or base_currency
+        to_currency = self.currency_id
+
+        if from_currency == to_currency:
+            return
+
+        # First convert to USD if coming from another currency
+        if from_currency != base_currency:
+            amount_in_usd = from_currency._convert(
+                self.amount,
+                base_currency,
+                self.env.user.company_id,
+                fields.Date.context_today(self)
+            )
+        else:
+            amount_in_usd = self.amount
+        # Then convert from USD to target currency if needed
+        if to_currency != base_currency:
+            self.amount = base_currency._convert(
+                amount_in_usd,
+                to_currency,
+                self.env.user.company_id,
+                fields.Date.context_today(self)
+            )
+        else:
+            self.amount = amount_in_usd
+
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
     currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.USD').id)
