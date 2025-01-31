@@ -213,8 +213,9 @@ class SaleOrder(models.Model):
                 order.state = 'sale'
                 # Move current market price to old market price
                 order.old_market_price = order.market_price
-                # Update market price to current market price
-                order.market_price = order.current_market_price
+                # Update market price to current market price only if it's not zero
+                if not float_is_zero(order.current_market_price, precision_digits=2):
+                    order.market_price = order.current_market_price
             if order.partner_id in order.message_partner_ids:
                 continue
             order.message_subscribe([order.partner_id.id])
@@ -238,8 +239,9 @@ class SaleOrder(models.Model):
         for order in self:
             if order.state == 'sale':
                 order.state = 'unfixed'
-                # Revert market price to old market price
-                order.market_price = order.old_market_price
+                # Revert market price to old market price only if old_market_price is not zero
+                if not float_is_zero(order.old_market_price, precision_digits=2):
+                    order.market_price = order.old_market_price
 
     # def action_open_set_price_wizard(self):
     #     return {
