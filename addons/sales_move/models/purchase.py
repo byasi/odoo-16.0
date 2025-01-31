@@ -51,19 +51,27 @@ class PurchaseOrder(models.Model):
         compute='_compute_totals',
         store=True
     )
+    total_without_weights_ugx = fields.Float(
+        string='Total TA UGX',
+        compute='_compute_totals',
+        store=True
+    )
 
     @api.depends('order_line', 'order_line.first_process_wt', 'order_line.second_process_wt', 'order_line.price_subtotal')
     def _compute_totals(self):
         for order in self:
             total_with_weights = 0
             total_without_weights = 0
+            total_without_weights_ugx = 0
             for line in order.order_line:
                 if line.first_process_wt > 0 and line.second_process_wt > 0:
                     total_with_weights += line.price_subtotal
                 else:
                     total_without_weights += line.price_subtotal
+                    total_without_weights_ugx += line.price_unit 
             order.total_with_weights = total_with_weights
             order.total_without_weights = total_without_weights
+            order.total_without_weights_ugx = total_without_weights_ugx
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100

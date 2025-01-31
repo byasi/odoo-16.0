@@ -147,7 +147,7 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='amount_untaxed']" position="before">
                     <field name="total_with_weights" string="Total Rm" sum="Total RM" optional="hide" />
-                    <field name="total_without_weights" string="Total TA" sum="Total TA and SMS" optional="hide"/>
+                    <field name="total_without_weights_ugx" string="Total TA" sum="Total TA and SMS" optional="hide"/>
                 </xpath>
             </field>
         </record>
