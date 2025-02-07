@@ -23,6 +23,10 @@ class PurchaseOrder(models.Model):
     )
     material_unit = fields.Many2one('uom.uom',string="Market Price Unit", default=lambda self: self.env.ref('uom.product_uom_oz').id)
     material_unit_input = fields.Many2one('uom.uom',string="Material Unit Input", default=lambda self: self.env.ref('uom.product_uom_gram').id)
+    date_approve = fields.Datetime(
+        string="Order Deadline",
+        readonly=False  # Ensure it's editable at all times
+    )
     transaction_currency = fields.Many2one('res.currency', string="Transaction Currency", default=lambda self: self.env.ref('base.USD').id)
     transaction_unit = fields.Many2one('uom.uom',string="Transaction Unit", default=lambda self: self.env.ref('uom.product_uom_ton').id)
     unit_convention = fields.Many2one('uom.uom',string="Unit Convention")
@@ -68,7 +72,7 @@ class PurchaseOrder(models.Model):
                     total_with_weights += line.price_subtotal
                 else:
                     total_without_weights += line.price_subtotal
-                    total_without_weights_ugx += line.price_unit 
+                    total_without_weights_ugx += line.price_unit
             order.total_with_weights = total_with_weights
             order.total_without_weights = total_without_weights
             order.total_without_weights_ugx = total_without_weights_ugx
