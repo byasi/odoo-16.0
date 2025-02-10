@@ -1,15 +1,35 @@
 from odoo import  models, fields, api, _
-
+from datetime import date
 class AccountMove(models.Model):
     _inherit = "account.move"
-    invoice_date = fields.Date(
-        string="Invoice/Bill Date",
-        readonly=True,
-        states={'draft': [('readonly', False)]},
-        index=True,
-        copy=False,
-        default=fields.Date.context_today)
 
+    invoice_date = fields.Date(default=lambda self: self._get_default_invoice_date())
+    date = fields.Date(default=lambda self: self._get_default_invoice_date())
+
+    is_invoice_date_past = fields.Boolean(
+        compute="_compute_is_date_approve_past", store=True
+    )
+    is_date_past = fields.Boolean(
+        compute="_compute_is_date_past", store=True
+    )
+
+    @api.depends('invoice_date')
+    def _compute_is_date_approve_past(self):
+        for order in self:
+            order.is_invoice_date_past = order.invoice_date and order.invoice_date < date.today()
+
+    @api.depends('date')
+    def _compute_is_date_past(self):
+        for order in self:
+            order.is_date_past = order.date and order.date < date.today()
+
+    def _get_default_invoice_date(self):
+        """Gets the latest date_approve from related account.move.line"""
+        if not self or not self.line_ids:
+            return fields.Date.context_today(self)
+
+        date_approve_values = self.line_ids.mapped('date_approve')
+        return max(date_approve_values) if date_approve_values else fields.Date.context_today(self)
 class AccountPayment(models.Model):
     _inherit = "account.payment"
     currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.USD').id)
@@ -90,6 +110,26 @@ class AccountPaymentRegister(models.TransientModel):
         store=True,
         readonly=False
     )
+    is_payment_date_past = fields.Boolean(
+        compute="_compute_is_payment_date_past", store=True
+    )
+
+
+    @api.depends('payment_date')
+    def _compute_is_payment_date_past(self):
+        for order in self:
+            order.is_payment_date_past = order.payment_date and order.payment_date < date.today()
+
+
+    @api.model
+    def default_get(self, fields_list):
+        defaults = super().default_get(fields_list)
+        active_id = self._context.get('active_id')
+        if active_id:
+            invoice = self.env['account.move'].browse(active_id)
+            if invoice and invoice.invoice_date:
+                defaults['payment_date'] = invoice.invoice_date
+        return defaults
 
     @api.depends('currency')
     def _compute_currency_rate(self):

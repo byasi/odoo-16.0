@@ -63,19 +63,19 @@ class StockMoveLine(models.Model):
             vals['lot_name'] = f"{date_prefix}-{new_sequence}"
         return vals
 
-    @api.constrains('lot_name')
-    def _check_lot_name_unique(self):
-        for record in self:
-            if record.lot_name:
-                # Search for existing lots with the same name
-                existing_lots = self.search([
-                    ('lot_name', '=', record.lot_name),
-                    ('id', '!=', record.id)  # Exclude the current record from the search
-                ])
-                if existing_lots:
-                    raise ValidationError(_(
-                        "The Lot Name '%s' already exists. Please choose a different name." % record.lot_name
-                    ))
+    # @api.constrains('lot_name')
+    # def _check_lot_name_unique(self):
+    #     for record in self:
+    #         if record.lot_name:
+    #             # Search for existing lots with the same name
+    #             existing_lots = self.search([
+    #                 ('lot_name', '=', record.lot_name),
+    #                 ('id', '!=', record.id)  # Exclude the current record from the search
+    #             ])
+    #             if existing_lots:
+    #                 raise ValidationError(_(
+    #                     "The Lot Name '%s' already exists. Please choose a different name." % record.lot_name
+    #                 ))
 
     @api.depends('move_id.product_quality')
     def _compute_lot_product_quality(self):

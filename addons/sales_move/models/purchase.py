@@ -2,6 +2,7 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.float_utils import float_compare, float_is_zero, float_round
 import math
+from datetime import date
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -60,6 +61,14 @@ class PurchaseOrder(models.Model):
         compute='_compute_totals',
         store=True
     )
+    is_date_approve_past = fields.Boolean(
+        compute="_compute_is_date_approve_past", store=True
+    )
+
+    @api.depends('date_approve')
+    def _compute_is_date_approve_past(self):
+        for order in self:
+            order.is_date_approve_past = order.date_approve and order.date_approve.date() < date.today()
 
     @api.depends('order_line', 'order_line.first_process_wt', 'order_line.second_process_wt', 'order_line.price_subtotal')
     def _compute_totals(self):
@@ -317,6 +326,7 @@ class PurchaseOrderLine(models.Model):
             'unrounded_transfer_rate': unrounded_transfer_rate,
             'manual_quantity': self.manual_first_process,
             'price_currency': self.price_currency.id,
+            'date_approve': self.date_approve,
         })
         return res
 
@@ -356,6 +366,7 @@ class PurchaseOrderLine(models.Model):
         string='Formula',
         readonly=False,  # Ensure it is writable if needed
     )
+    date_approve = fields.Datetime(string="Order Deadline", related='order_id.date_approve', readonly=False)
 
     @api.depends('first_process_wt', 'manual_first_process', 'order_id.material_unit_input', 'order_id.transaction_unit')
     def _compute_qty_g(self):
@@ -630,6 +641,7 @@ class AccountMoveLine(models.Model):
     subtotal = fields.Float(string="Subtotal From Purchase", store=True)
     unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
     manual_quantity = fields.Float(string="Quantity", store=True)
+    date_approve = fields.Datetime(string="Order Deadline", readonly=False)
     price_total = fields.Monetary(
         string='Total',
         compute='_compute_totals', store=True,
