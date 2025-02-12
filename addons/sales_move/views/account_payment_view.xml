@@ -19,6 +19,10 @@
                 <xpath expr="//field[@name='tax_totals']" position="replace">
                     <field name="tax_totals" widget="account-tax-totals-field" nolabel="1" colspan="2" attrs="{'invisible': [('move_type', 'in', ('in_invoice', 'in_refund', 'in_receipt'))]}"/>
                 </xpath>
+                <xpath expr="//field[@name='invoice_line_ids']//field[@name='quantity']" position="before">
+                    <field name="manual_quantity_so" />
+                     <!-- <field name="date_approve" /> -->
+                </xpath>
                 <xpath expr="//field[@name='invoice_line_ids']//field[@name='price_unit']" position="after">
                     <field name="price_currency" />
                      <!-- <field name="date_approve" /> -->
@@ -31,31 +35,6 @@
                     <attribute name="readonly">0</attribute>
                     <attribute name="decoration-danger">is_date_past</attribute>
                 </xpath>
-
-
-                <xpath expr="//field[@name='tax_totals']" position="after">
-                    <table class="oe_subtotal_footer oe_right" attrs="{'invisible': [('move_type', 'not in', ('in_invoice', 'in_refund', 'in_receipt'))]}">
-                        <tbody>
-                            <tr attrs="{'invisible': [('amount_tax', '=', 0.0)]}">
-                                <td class="o_td_label" style="padding-right: 500px;">
-                                    <span class="o_form_label o_tax_total_label">Tax</span>
-                                </td>
-                                <td class="o_list_monetary">
-                                    <field name="amount_tax" string="Tax" readonly="1" style="font-size: 25px;"/>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="o_td_label" style="padding-right: 50px;">
-                                    <span class="o_form_label o_tax_total_label">Total</span>
-                                </td>
-                                <td class="o_list_monetary">
-                                    <field name="amount_total" string="Total" readonly="1"/>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </xpath>
-
             </field>
         </record>
 

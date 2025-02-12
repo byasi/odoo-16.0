@@ -11,7 +11,7 @@
                     <button name="action_back_to_unpicked" string="unfixed" type="object" states="sale" class="btn-secondary"/>
                 </xpath>
                 <field name="date_order" position="attributes">
-                     <attribute name="readonly">0</attribute>
+                    <attribute name="readonly">0</attribute>
                 </field>
                 <xpath expr="//field[@name='date_order']" position="attributes">
                     <attribute name="decoration-danger">is_date_order_past</attribute>
@@ -21,7 +21,7 @@
                     <attribute name="statusbar_visible">draft,unfixed,sale,done</attribute>
                 </xpath>
                 <xpath expr="//field[@name='partner_id']" position="after">
-                 <field name="is_date_order_past" invisible="1"/>
+                    <field name="is_date_order_past" invisible="1"/>
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
@@ -61,6 +61,9 @@
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
                     }" />
+                    <field name="manual_quantity" string="Manual Quantity" attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
+                    }" />
 
 
                     <!-- <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
@@ -83,6 +86,28 @@
                         'column_invisible': [('parent.state', 'not in', ['unfixed'])],
                         'readonly': [('qty_delivered_method', '!=', 'manual')]
                         }" />
+                </xpath>
+                <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
+                    <table class="oe_right">
+                        <tbody>
+                            <tr attrs="{'invisible': [('amount_tax', '=', 0.0)]}">
+                                <td class="o_td_label" style="padding-right: 20px;">
+                                    <span class="o_form_label o_tax_total_label">Tax</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="amount_tax" string="Tax" readonly="1"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="o_td_label" style="padding-right: 100px;">
+                                    <span class="o_form_label o_tax_total_label">Total</span>
+                                </td>
+                                <td class="o_list_monetary">
+                                    <field name="amount_total" string="Total" readonly="1"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </xpath>
 
             </field>

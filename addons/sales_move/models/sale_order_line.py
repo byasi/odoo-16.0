@@ -80,6 +80,42 @@ class SaleOrder(models.Model):
     is_date_order_past = fields.Boolean(
         compute="_compute_is_date_order_past", store=True
     )
+
+    amount_total = fields.Monetary(string="Total", store=True, compute='_compute_amounts', tracking=4)
+
+    @api.depends('order_line.price_subtotal', 'order_line.price_tax', 'order_line.price_total')
+    def _compute_amounts(self):
+        """
+        Compute the total amounts of the SO, including untaxed amount, tax amount, and total amount.
+        This method uses the price_subtotal, price_tax, and price_total fields from the order lines,
+        which are computed based on manual_quantity if provided.
+        """
+        for order in self:
+            order = order.with_company(order.company_id)
+            # Filter out non-product lines (e.g., section or note lines)
+            order_lines = order.order_line.filtered(lambda x: not x.display_type)
+
+            if order.company_id.tax_calculation_rounding_method == 'round_globally':
+                # Compute taxes globally for all order lines
+                tax_results = order.env['account.tax']._compute_taxes([
+                    line._convert_to_tax_base_line_dict()
+                    for line in order_lines
+                ])
+                totals = tax_results['totals']
+                amount_untaxed = totals.get(order.currency_id, {}).get('amount_untaxed', 0.0)
+                amount_tax = totals.get(order.currency_id, {}).get('amount_tax', 0.0)
+            else:
+                # Compute taxes line by line and sum the results
+                amount_untaxed = sum(order_lines.mapped('price_subtotal'))
+                amount_tax = sum(order_lines.mapped('price_tax'))
+
+            # Update the order amounts
+            order.update({
+                'amount_untaxed': amount_untaxed,
+                'amount_tax': amount_tax,
+                'amount_total': amount_untaxed + amount_tax,
+            })
+            
     @api.depends('date_order')
     def _compute_is_date_order_past(self):
         for order in self:
@@ -265,14 +301,6 @@ class SaleOrder(models.Model):
                 if not float_is_zero(order.old_market_price, precision_digits=2):
                     order.market_price = order.old_market_price
 
-    # def action_open_set_price_wizard(self):
-    #     return {
-    #         'name': 'Set Current Market Price',
-    #         'type': 'ir.actions.act_window',
-    #         'res_model': 'set.current.market.price.wizard',
-    #         'view_mode': 'form',
-    #         'target': 'new',
-    #     }
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
     rate = fields.Float(string="Rate", compute="_compute_rate", digits=(16, 3), store=True)
@@ -283,7 +311,8 @@ class SaleOrderLine(models.Model):
     manual_item_quality = fields.Float(string="Manual Item Quality", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True)
- 
+    manual_quantity = fields.Float(string="Manual Quantity", store=True)
+
     price_unit = fields.Float(
         string="Unit Price",
         compute='_compute_price_unit',
@@ -299,11 +328,47 @@ class SaleOrderLine(models.Model):
         store=True, readonly=False, required=True,
     )
     current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+    price_subtotal = fields.Monetary(
+        string="Subtotal",
+        compute='_compute_amount',
+        store=True, precompute=True)
 
-    @api.depends('current_price_unit', 'product_uom_qty')
-    def _compute_current_subTotal(self):
+    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'manual_quantity')
+    def _compute_amount(self):
+        """
+        Compute the amounts of the SO line, using manual_quantity if provided.
+        """
         for line in self:
-            line.current_subTotal = line.current_price_unit * line.product_uom_qty
+            # Use manual_quantity if it is provided (greater than 0), otherwise use product_uom_qty
+            quantity = line.manual_quantity if line.manual_quantity > 0 else line.product_uom_qty
+
+            # Prepare the tax base line dictionary with the updated quantity
+            tax_base_line_dict = line._convert_to_tax_base_line_dict()
+            tax_base_line_dict['quantity'] = quantity  # Override quantity with manual_quantity
+
+            # Compute taxes using the updated quantity
+            tax_results = self.env['account.tax'].with_company(line.company_id)._compute_taxes([tax_base_line_dict])
+            totals = list(tax_results['totals'].values())[0]
+            amount_untaxed = totals['amount_untaxed']
+            amount_tax = totals['amount_tax']
+
+            # Update the line with the new amounts
+            line.update({
+                'price_subtotal': amount_untaxed,
+                'price_tax': amount_tax,
+                'price_total': amount_untaxed + amount_tax,
+            })
+
+
+    @api.depends('current_price_unit', 'manual_quantity', 'product_uom_qty')
+    def _compute_current_subTotal(self):
+        """
+        Compute the subtotal based on manual_quantity if provided, otherwise use product_uom_qty.
+        """
+        for line in self:
+            # Use manual_quantity if it is set (greater than 0), otherwise use product_uom_qty
+            quantity = line.manual_quantity if line.manual_quantity > 0 else line.product_uom_qty
+            line.current_subTotal = line.current_price_unit * quantity
 
     @api.depends('order_id.current_net_price')
     def _compute_current_rate(self):
@@ -363,6 +428,8 @@ class SaleOrderLine(models.Model):
             else:
                 line.net_weight = line.gross_weight * quality / 100
 
+            # Update manual_quantity instead of directly changing quantity
+            line.manual_quantity = line.net_weight
 
     @api.depends('qty_delivered', 'product_id')
     def _compute_inventory_product_quality(self):
@@ -421,15 +488,16 @@ class SaleOrderLine(models.Model):
                 line.product_cost = 0.0
 
 
-    @api.depends('display_type', 'product_id', 'product_packaging_qty', 'net_weight')
+    @api.depends('display_type', 'product_id', 'product_packaging_qty', 'gross_weight',  'inventory_product_quality')
     def _compute_product_uom_qty(self):
         for line in self:
+
             if line.display_type:
                 line.product_uom_qty = 0.0
                 continue
 
-            if line.net_weight > 0:
-                line.product_uom_qty = line.net_weight
+            if line.manual_gross_weight:
+                line.product_uom_qty = line.gross_weight * line.inventory_product_quality / 100
                 continue
 
             if not line.product_packaging_id:
@@ -442,3 +510,66 @@ class SaleOrderLine(models.Model):
 
             if float_compare(product_uom_qty, line.product_uom_qty, precision_rounding=line.product_uom.rounding) != 0:
                 line.product_uom_qty = product_uom_qty
+
+    def _prepare_invoice_line(self, **optional_values):
+        """
+        Prepare the dict of values to create the new invoice line for a sales order line.
+        """
+        res = super(SaleOrderLine, self)._prepare_invoice_line(**optional_values)
+        res.update({
+            'manual_quantity_so': self.manual_quantity,
+        })
+        return res
+
+class AccountMoveLine(models.Model):
+    _inherit = "account.move.line"
+
+    manual_quantity_so = fields.Float(string="Manual Quantity", store=True)
+    price_total = fields.Monetary(
+        string='Total',
+        compute='_compute_totals', store=True,
+        currency_field='currency_id',
+    )
+
+    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate',
+                 'manual_quantity_so', 'price_currency')
+    def _compute_totals(self):
+        for line in self:
+            if line.display_type != 'product':
+                line.price_total = line.price_subtotal = False
+                continue
+
+            # Use manual_quantity_so if it is set, otherwise use quantity
+            effective_quantity = line.manual_quantity_so if line.manual_quantity_so else line.quantity
+
+            # Compute the price unit after discount
+            line_discount_price_unit = line.price_unit * (1 - (line.discount / 100.0))
+
+            # Convert price_unit if a price_currency is set and it's different from the base currency
+            if line.price_currency and line.currency_id and line.price_currency != line.currency_id:
+                converted_price_unit = line.price_currency._convert(
+                    line_discount_price_unit,
+                    line.currency_id,
+                    line.company_id,
+                    line.move_id.date or fields.Date.today()
+                )
+            else:
+                converted_price_unit = line_discount_price_unit
+
+            # Calculate the subtotal based on the effective quantity
+            subtotal = effective_quantity * converted_price_unit
+
+            # Compute 'price_subtotal' and 'price_total'
+            if line.tax_ids:
+                taxes_res = line.tax_ids.compute_all(
+                    converted_price_unit,
+                    quantity=effective_quantity,
+                    currency=line.currency_id,
+                    product=line.product_id,
+                    partner=line.partner_id,
+                    is_refund=line.is_refund,
+                )
+                line.price_subtotal = taxes_res['total_excluded']
+                line.price_total = taxes_res['total_included']
+            else:
+                line.price_total = line.price_subtotal = subtotal
