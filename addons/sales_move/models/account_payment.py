@@ -3,7 +3,7 @@ from datetime import date
 class AccountMove(models.Model):
     _inherit = "account.move"
 
-    invoice_date = fields.Date(default=lambda self: self._get_default_invoice_date())
+    invoice_date = fields.Date(default=lambda self: self._get_default_invoice_date(),readonly=False)
     date = fields.Date(default=lambda self: self._get_default_invoice_date())
 
     is_invoice_date_past = fields.Boolean(
@@ -12,6 +12,7 @@ class AccountMove(models.Model):
     is_date_past = fields.Boolean(
         compute="_compute_is_date_past", store=True
     )
+
 
     @api.depends('invoice_date')
     def _compute_is_date_approve_past(self):

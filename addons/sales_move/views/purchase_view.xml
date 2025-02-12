@@ -9,10 +9,12 @@
                 <field name="date_approve" position="attributes">
                     <attribute name="readonly">0</attribute>
                 </field>
+                <xpath expr="//field[@name='date_order']" position="attributes">
+                    <attribute name="required">True</attribute>
+                </xpath>
                 <xpath expr="//field[@name='date_approve']" position="attributes">
                     <attribute name="decoration-danger">is_date_approve_past</attribute>
                 </xpath>
-
                 <xpath expr="//notebook" position="inside">
                     <page string="Deductions" name="Deductions">
                         <field name="deduction_lines">
@@ -62,6 +64,7 @@
                     <!-- <field name="second_process_wt" string="Second Process Weight"/> -->
                     <field name="formula" string="Formula" invisible="1" />
                 </xpath>
+
                 <xpath expr="//div[@name='reminder']" position="after">
                     <field name="is_date_approve_past" invisible="1"/>
                     <field name="transaction_currency" string="Transaction Currency"/>

@@ -7,6 +7,7 @@ import logging
 
 _logger = logging.getLogger(__name__)
 
+
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     currency_id = fields.Many2one('res.currency', string="Currency", invisible=True)
@@ -14,31 +15,40 @@ class PurchaseOrder(models.Model):
     product_price = fields.Monetary(string="Product Price")
     deduction_head = fields.Float(string="Deduction Head")
     additions = fields.Float(string="Additions")
-    market_price_currency = fields.Many2one('res.currency',string="Market Price Currency", default=lambda self: self.env.ref('base.USD').id)
+    market_price_currency = fields.Many2one('res.currency', string="Market Price Currency",
+                                            default=lambda self: self.env.ref('base.USD').id)
     discount = fields.Float(string="Discount/additions")
     net_price = fields.Monetary(
-    string="Net Market Price",
-    compute="_compute_net_price",
-    currency_field='market_price_currency',
-    store=True
+        string="Net Market Price",
+        compute="_compute_net_price",
+        currency_field='market_price_currency',
+        store=True
     )
-    material_unit = fields.Many2one('uom.uom',string="Market Price Unit", default=lambda self: self.env.ref('uom.product_uom_oz').id)
-    material_unit_input = fields.Many2one('uom.uom',string="Material Unit Input", default=lambda self: self.env.ref('uom.product_uom_gram').id)
+    material_unit = fields.Many2one('uom.uom', string="Market Price Unit",
+                                    default=lambda self: self.env.ref('uom.product_uom_oz').id)
+    material_unit_input = fields.Many2one('uom.uom', string="Material Unit Input",
+                                          default=lambda self: self.env.ref('uom.product_uom_gram').id)
     date_approve = fields.Datetime(
         string="Order Deadline",
-        readonly=False  # Ensure it's editable at all times
+        readonly=False # Ensure it's editable at all times
     )
-    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency", default=lambda self: self.env.ref('base.USD').id)
-    transaction_unit = fields.Many2one('uom.uom',string="Transaction Unit", default=lambda self: self.env.ref('uom.product_uom_ton').id)
-    unit_convention = fields.Many2one('uom.uom',string="Unit Convention")
+
+    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency",
+                                           default=lambda self: self.env.ref('base.USD').id)
+    transaction_unit = fields.Many2one('uom.uom', string="Transaction Unit",
+                                       default=lambda self: self.env.ref('uom.product_uom_ton').id)
+    unit_convention = fields.Many2one('uom.uom', string="Unit Convention")
     x_factor = fields.Float(string="Xfactor", default=92)
-    net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total", store=True)
+    net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total",
+                                store=True)
     # deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency', related="total_deductions")
-    deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency')
+    deductions = fields.Monetary(string="Deductions", currency_field='transaction_currency')
     company_currency_id = fields.Many2one(
         'res.currency', related='company_id.currency_id', readonly=True, string="Company Currency"
     )
-    transaction_price_per_unit = fields.Monetary(string="Transaction Price per Unit", currency_field='transaction_currency', compute="_compute_transaction_price_per_unit", store=True)
+    transaction_price_per_unit = fields.Monetary(string="Transaction Price per Unit",
+                                                 currency_field='transaction_currency',
+                                                 compute="_compute_transaction_price_per_unit", store=True)
     original_market_price = fields.Monetary(string="Original Market Price", currency_field='company_currency_id')
     currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.UGX').id)
     partner_street = fields.Char(related='partner_id.street', string="Street", readonly=True)
@@ -65,12 +75,25 @@ class PurchaseOrder(models.Model):
         compute="_compute_is_date_approve_past", store=True
     )
 
+    def action_create_invoice(self):
+        """ Override the bill creation to copy the Order Deadline as the Bill Date. """
+        res = super(PurchaseOrder, self).action_create_invoice()
+
+        for bill in self.invoice_ids:
+            if self.date_approve:  # Check if Order Deadline exists
+                bill.invoice_date = self.date_approve
+                bill.date = self.date_approve
+        return res
+
+
     @api.depends('date_approve')
     def _compute_is_date_approve_past(self):
         for order in self:
             order.is_date_approve_past = order.date_approve and order.date_approve.date() < date.today()
 
-    @api.depends('order_line', 'order_line.first_process_wt', 'order_line.second_process_wt', 'order_line.price_subtotal')
+
+    @api.depends('order_line', 'order_line.first_process_wt', 'order_line.second_process_wt',
+                 'order_line.price_subtotal')
     def _compute_totals(self):
         for order in self:
             total_with_weights = 0
@@ -85,11 +108,11 @@ class PurchaseOrder(models.Model):
             order.total_with_weights = total_with_weights
             order.total_without_weights = total_without_weights
             order.total_without_weights_ugx = total_without_weights_ugx
+
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
-
 
     @api.depends('market_price', 'discount')
     def _compute_net_price(self):
@@ -99,7 +122,6 @@ class PurchaseOrder(models.Model):
                 order.net_price = self.custom_round_down(net_price)
             else:
                 order.net_price = self.custom_round_down(order.market_price) if order.market_price else 0.
-
 
     @api.depends('convention_market_unit', 'net_price', 'transaction_currency', 'market_price_currency')
     def _compute_transaction_price_per_unit(self):
@@ -113,10 +135,9 @@ class PurchaseOrder(models.Model):
                 )
                 # transaction_price_per_unit = order.convention_market_unit * converted_market_price
                 transaction_price_per_unit = converted_market_price / 3
-                order.transaction_price_per_unit =  self.custom_round_down(transaction_price_per_unit)
+                order.transaction_price_per_unit = self.custom_round_down(transaction_price_per_unit)
             else:
                 order.transaction_price_per_unit = 0.0
-
 
     @api.depends('order_line.amount', 'deductions', 'transaction_currency')
     def _compute_net_total(self):
@@ -126,18 +147,18 @@ class PurchaseOrder(models.Model):
             net_total = total + order.deductions
             order.net_total = self.custom_round_down(net_total)
 
-
     @api.model
     def _compute_formula_selection(self):
         ICPSudo = self.env['ir.config_parameter'].sudo()
-        method_1 = ICPSudo.get_param('purchase_move.method_1',default='')
-        method_2 = ICPSudo.get_param('purchase_move.method_2',default='')
-        method_3 = ICPSudo.get_param('purchase_move.method_3',default='')
+        method_1 = ICPSudo.get_param('purchase_move.method_1', default='')
+        method_2 = ICPSudo.get_param('purchase_move.method_2', default='')
+        method_3 = ICPSudo.get_param('purchase_move.method_3', default='')
         return [
             ('method_1', method_1),
             ('method_2', method_2),
             ('method_3', method_3),
         ]
+
     formula = fields.Selection(
         selection='_compute_formula_selection',
         string='Formula',
@@ -145,9 +166,9 @@ class PurchaseOrder(models.Model):
         readonly=True
     )
     convention_market_unit = fields.Float(
-    string="Conversion Market Unit",
-    compute="_compute_convention_market_unit",
-    store=True
+        string="Conversion Market Unit",
+        compute="_compute_convention_market_unit",
+        store=True
     )
 
     @api.depends('material_unit', 'transaction_unit')
@@ -159,7 +180,6 @@ class PurchaseOrder(models.Model):
                 )
             else:
                 record.convention_market_unit = 0.0
-
 
     @api.onchange('market_price_currency')
     def _onchange_market_price_currency(self):
@@ -180,7 +200,9 @@ class PurchaseOrder(models.Model):
                     record.company_id,
                     record.date_order or fields.Date.today()
                 )
-    amount_untaxed = fields.Monetary(string='Untaxed Amount', store=True, readonly=True, compute='_amount_all', tracking=True)
+
+    amount_untaxed = fields.Monetary(string='Untaxed Amount', store=True, readonly=True, compute='_amount_all',
+                                     tracking=True)
     tax_totals = fields.Binary(compute='_compute_tax_totals', exportable=False)
     amount_tax = fields.Monetary(string='Taxes', store=True, readonly=True, compute='_amount_all')
     amount_total = fields.Monetary(string='Total', store=True, readonly=True, compute='_amount_all')
@@ -213,12 +235,12 @@ class PurchaseOrder(models.Model):
             total = (order.amount_untaxed + order.amount_tax) + order.deductions
             order.amount_total = self.custom_round_down(total)
 
-
-
-# deductions tab here
+    # deductions tab here
     deduction_ids = fields.One2many('purchase.order.deductions', 'order_id', string="Deductions")
     deduction_lines = fields.One2many('purchase.order.deductions', 'order_id', string='Deductions')
-    total_deductions = fields.Monetary(string='Total Deductions', currency_field='currency_id', compute="_compute_total_deductions")
+    total_deductions = fields.Monetary(string='Total Deductions', currency_field='currency_id',
+                                       compute="_compute_total_deductions")
+
     @api.depends('deduction_ids.transaction_currency_amount')
     def _compute_total_deductions(self):
         for order in self:
@@ -226,7 +248,8 @@ class PurchaseOrder(models.Model):
             for deduction in order.deduction_ids:
                 total += deduction.transaction_currency_amount
             order.total_deductions = total
-# End of deductions tab
+
+    # End of deductions tab
 
     @api.constrains('market_price')
     def _check_market_price(self):
@@ -236,6 +259,7 @@ class PurchaseOrder(models.Model):
                     "Market Price is required and cannot be zero.\n"
                     "Please set a valid Market Price before saving."
                 ))
+
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
@@ -254,22 +278,29 @@ class PurchaseOrderLine(models.Model):
     amount = fields.Monetary(string="Amount", compute="_comput_amount", store=True)
     original_amount = fields.Monetary(string="Amount", compute="_comput_original_amount", store=True)
     transfer_rate = fields.Float(string="Transfer Rate", compute="_compute_transfer_rate", store=True)
-    price_currency = fields.Many2one('res.currency',string="Price Currency", default=lambda self: self.env.ref('base.USD').id)
-    dd = fields.Float(string="DD", compute="_compute_dd",digits=(16, 4), store=True)
+    price_currency = fields.Many2one('res.currency', string="Price Currency",
+                                     default=lambda self: self.env.ref('base.USD').id)
+    dd = fields.Float(string="DD", compute="_compute_dd", digits=(16, 4), store=True)
     actual_dd = fields.Float(string="DD", compute="_compute_actual_dd", store=True)
     manual_dd = fields.Float(string="DD", store=True)
     UGX_currency = fields.Many2one('res.currency', string="Currency", default=lambda self: self.env.ref('base.UGX').id)
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
-    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality", store=True, readonly=False)
+    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality",
+                                          store=True, readonly=False)
     manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
-    original_product_quality = fields.Float(string="Original Product Quality", compute="_compute_original_product_quality", readonly=True)
-    product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference", readonly=True)
+    original_product_quality = fields.Float(string="Original Product Quality",
+                                            compute="_compute_original_product_quality", readonly=True)
+    product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference",
+                                              readonly=True)
     price_subtotal = fields.Monetary(compute='_compute_amount', string='Subtotal', store=True)
     price_total = fields.Monetary(compute='_compute_amount', string='Total', store=True)
     price_tax = fields.Float(compute='_compute_amount', string='Tax', store=True)
-    price_unit = fields.Float(string='Unit Price', required=True, digits='Product Price', compute="_compute_price_unit", readonly=False, store=True)
-    product_qty = fields.Float(string='Quantity', required=True, compute='_compute_product_qty', store=True, readonly=False)
+    price_unit = fields.Float(string='Unit Price', required=True, digits='Product Price', compute="_compute_price_unit",
+                              readonly=False, store=True)
+    product_qty = fields.Float(string='Quantity', required=True, compute='_compute_product_qty', store=True,
+                               readonly=False)
     product_uom = fields.Many2one('uom.uom', compute='_compute_product_uom', store=True, readonly=False)
+
     # custom_round_down(2302.842/dd)-219.318
 
     @api.constrains('first_process_wt', 'second_process_wt')
@@ -288,6 +319,7 @@ class PurchaseOrderLine(models.Model):
                     raise ValidationError(_(
                         "Product Quality must be between 60 and 98."
                     ))
+
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
     def _compute_dd(self):
         for line in self:
@@ -297,7 +329,7 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.dd = 0.0
 
-    @api.depends('first_process_wt', 'second_process_wt',)
+    @api.depends('first_process_wt', 'second_process_wt', )
     def _compute_actual_dd(self):
         for line in self:
             if line.first_process_wt and line.second_process_wt:
@@ -306,7 +338,6 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.actual_dd = 0.0
 
-
     @api.model
     def _prepare_account_move_line(self, move=False):
         """Prepare the values for the creation of account.move.line."""
@@ -314,10 +345,10 @@ class PurchaseOrderLine(models.Model):
         effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
         if effective_process_wt == 0:
             unrounded_transfer_rate = self.price_unit
-            subTotal =  self.product_qty * unrounded_transfer_rate
-        else :
+            subTotal = self.product_qty * unrounded_transfer_rate
+        else:
             unrounded_transfer_rate = self.price_subtotal / effective_process_wt
-            subTotal =  effective_process_wt * unrounded_transfer_rate
+            subTotal = effective_process_wt * unrounded_transfer_rate
 
         # Update price_unit to match transfer_rate
         res.update({
@@ -335,7 +366,8 @@ class PurchaseOrderLine(models.Model):
         rounded_down_value = math.floor(scaled_value) / 100
         return rounded_down_value
 
-    @api.depends('qty_g', 'product_quality', 'manual_product_quality', 'order_id.transaction_price_per_unit', 'order_id.x_factor')
+    @api.depends('qty_g', 'product_quality', 'manual_product_quality', 'order_id.transaction_price_per_unit',
+                 'order_id.x_factor')
     def _comput_amount(self):
         for line in self:
             # Use manual_product_quality if provided; otherwise, fallback to product_quality
@@ -344,19 +376,20 @@ class PurchaseOrderLine(models.Model):
             if line.qty_g and effective_product_quality and line.order_id.transaction_price_per_unit and line.order_id.x_factor:
                 try:
                     # Calculate amount and round down the result
-                    amount = (line.qty_g * effective_product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
+                    amount = (
+                                     line.qty_g * effective_product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
                     line.amount = self.custom_round_down(amount)
                 except ZeroDivisionError:
                     line.amount = 0.0
             else:
                 line.amount = 0.0
 
-
-    @api.depends('qty_g', 'original_product_quality','order_id.transaction_price_per_unit', 'order_id.x_factor')
+    @api.depends('qty_g', 'original_product_quality', 'order_id.transaction_price_per_unit', 'order_id.x_factor')
     def _comput_original_amount(self):
         for line in self:
             if line.qty_g and line.original_product_quality:
-                amount = (line.qty_g * line.original_product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
+                amount = (
+                                 line.qty_g * line.original_product_quality * line.order_id.transaction_price_per_unit) / line.order_id.x_factor
                 line.original_amount = self.custom_round_down(amount)
             else:
                 line.original_amount = 0.0
@@ -368,7 +401,8 @@ class PurchaseOrderLine(models.Model):
     )
     date_approve = fields.Datetime(string="Order Deadline", related='order_id.date_approve', readonly=False)
 
-    @api.depends('first_process_wt', 'manual_first_process', 'order_id.material_unit_input', 'order_id.transaction_unit')
+    @api.depends('first_process_wt', 'manual_first_process', 'order_id.material_unit_input',
+                 'order_id.transaction_unit')
     def _compute_qty_g(self):
         for line in self:
             # Use manual_first_process if provided; otherwise, fallback to first_process_wt
@@ -416,8 +450,6 @@ class PurchaseOrderLine(models.Model):
             else:
                 line.transfer_rate = 0.0
 
-
-
     @api.depends('manual_dd', 'manual_product_quality')
     def _compute_manual_product_quality(self):
         """Compute manual_product_quality using the formula if manual_dd is provided."""
@@ -425,11 +457,10 @@ class PurchaseOrderLine(models.Model):
             if record.manual_dd:  # If manual_dd is provided, calculate it using the formula
                 record.manual_product_quality = self.custom_round_down(
                     abs(self.custom_round_down(
-                    (2302.842 / self.custom_round_down(record.manual_dd))
-                ) - 219.318)
+                        (2302.842 / self.custom_round_down(record.manual_dd))
+                    ) - 219.318)
                 )
             # Else, keep the manual value as is (user-provided)
-
 
     @api.model_create_multi
     def _prepare_stock_moves(self, picking):
@@ -454,22 +485,22 @@ class PurchaseOrderLine(models.Model):
     @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight', 'dd')
     def _compute_product_quality(self):
         for line in self:
-                try:
-                    local_variables = {
-                        'first_process_wt': line.first_process_wt,
-                        'second_process_wt': line.second_process_wt,
-                        'gross_weight': line.gross_weight,
-                        'dd': line.dd,
-                        'custom_round_down': self.custom_round_down
-                    }
-                    formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')
-                    if formula_dict:
-                        result = eval(formula_dict, {}, local_variables)
-                        line.product_quality = self.custom_round_down(abs(result))
-                    else:
-                        line.product_quality = 0.0
-                except Exception:
+            try:
+                local_variables = {
+                    'first_process_wt': line.first_process_wt,
+                    'second_process_wt': line.second_process_wt,
+                    'gross_weight': line.gross_weight,
+                    'dd': line.dd,
+                    'custom_round_down': self.custom_round_down
+                }
+                formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')
+                if formula_dict:
+                    result = eval(formula_dict, { }, local_variables)
+                    line.product_quality = self.custom_round_down(abs(result))
+                else:
                     line.product_quality = 0.0
+            except Exception:
+                line.product_quality = 0.0
 
     @api.depends('formula', 'first_process_wt', 'second_process_wt', 'gross_weight')
     def _compute_original_product_quality(self):
@@ -483,7 +514,7 @@ class PurchaseOrderLine(models.Model):
                 }
                 formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')
                 if formula_dict:
-                    result = eval(formula_dict, {}, local_variables)
+                    result = eval(formula_dict, { }, local_variables)
                     line.original_product_quality = self.custom_round_down(abs(result))
                 else:
                     line.original_product_quality = 0.0
@@ -500,8 +531,8 @@ class PurchaseOrderLine(models.Model):
             else:
                 record.process_loss = 0.0
 
-
-    @api.depends('order_id.transaction_price_per_unit', 'order_id.x_factor', 'product_quality', 'manual_product_quality')
+    @api.depends('order_id.transaction_price_per_unit', 'order_id.x_factor', 'product_quality',
+                 'manual_product_quality')
     def _compute_rate(self):
         for line in self:
             # Use manual_product_quality if provided; otherwise, fallback to product_quality
@@ -510,7 +541,8 @@ class PurchaseOrderLine(models.Model):
             if line.order_id.transaction_price_per_unit and line.order_id.x_factor and effective_product_quality:
                 try:
                     # Calculate rate and round down the result
-                    rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * effective_product_quality
+                    rate = (
+                                   line.order_id.transaction_price_per_unit / line.order_id.x_factor) * effective_product_quality
                     line.rate = self.custom_round_down(rate)
                 except ZeroDivisionError:
                     line.rate = 0.0
@@ -523,7 +555,8 @@ class PurchaseOrderLine(models.Model):
             if line.order_id.transaction_price_per_unit and line.order_id.x_factor and line.original_product_quality:
                 try:
                     # Calculate rate and round down the result
-                    rates = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * line.original_product_quality
+                    rates = (
+                                    line.order_id.transaction_price_per_unit / line.order_id.x_factor) * line.original_product_quality
                     line.original_rate = self.custom_round_down(rates)
                 except ZeroDivisionError:
                     line.original_rate = 0.0
@@ -536,7 +569,7 @@ class PurchaseOrderLine(models.Model):
             if line.order_id.material_unit_input:
                 line.product_uom = line.order_id.material_unit_input
 
-    @api.depends('rate',)
+    @api.depends('rate', )
     def _compute_price_unit(self):
         for line in self:
             line.price_unit = line.rate
@@ -549,7 +582,8 @@ class PurchaseOrderLine(models.Model):
             else:
                 packaging_uom = line.product_packaging_id.product_uom_id
                 qty_per_packaging = line.product_packaging_id.qty
-                product_qty = packaging_uom._compute_quantity(line.product_packaging_qty * qty_per_packaging, line.product_uom)
+                product_qty = packaging_uom._compute_quantity(line.product_packaging_qty * qty_per_packaging,
+                                                              line.product_uom)
                 if float_compare(product_qty, line.product_qty, precision_rounding=line.product_uom.rounding) != 0:
                     line.product_qty = product_qty
 
@@ -586,7 +620,9 @@ class PurchaseOrderLine(models.Model):
     @api.constrains('product_qty', 'price_unit', 'price_subtotal')
     def _check_price_with_quantity(self):
         for line in self:
-            if line.product_qty >= 0 and (float_is_zero(line.price_unit, precision_digits=2) or float_is_zero(line.price_subtotal, precision_digits=2)):
+            if line.product_qty >= 0 and (
+                    float_is_zero(line.price_unit, precision_digits=2) or float_is_zero(line.price_subtotal,
+                                                                                        precision_digits=2)):
                 raise ValidationError(_(
                     "Cannot save purchase order with zero price\n"
                     "Product: %s\n"
@@ -594,18 +630,20 @@ class PurchaseOrderLine(models.Model):
                     "Price Unit: %s\n"
                     "Subtotal: %s"
                 ) % (
-                    line.product_id.display_name,
-                    line.product_qty,
-                    line.price_unit,
-                    line.price_subtotal
-                ))
+                                          line.product_id.display_name,
+                                          line.product_qty,
+                                          line.price_unit,
+                                          line.price_subtotal
+                                      ))
+
 
 class PurchaseOrderDeductions(models.Model):
     _name = 'purchase.order.deductions'
     _description = 'Deductions in Purchase Orders'
 
     order_id = fields.Many2one('purchase.order', string='Order Reference', required=True, ondelete='cascade')
-    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency", related='order_id.transaction_currency', store=True)
+    transaction_currency = fields.Many2one('res.currency', string="Transaction Currency",
+                                           related='order_id.transaction_currency', store=True)
     account_code = fields.Selection([
         ('deductions', 'Deductions'),
         ('additions', 'Additions'),
@@ -613,7 +651,9 @@ class PurchaseOrderDeductions(models.Model):
     comment = fields.Char(string='Comment')
     currency_id = fields.Many2one('res.currency', string='Currency')
     foreign_currency_amount = fields.Monetary(string='Foreign Currency Amount', currency_field='currency_id')
-    transaction_currency_amount = fields.Monetary(string='Transaction Currency Amount', currency_field='transaction_currency', compute="_compute_transaction_currency_amount")
+    transaction_currency_amount = fields.Monetary(string='Transaction Currency Amount',
+                                                  currency_field='transaction_currency',
+                                                  compute="_compute_transaction_currency_amount")
 
     @api.depends('foreign_currency_amount', 'transaction_currency', 'account_code')
     def _compute_transaction_currency_amount(self):
@@ -634,6 +674,7 @@ class PurchaseOrderDeductions(models.Model):
             else:
                 record.transaction_currency_amount = 0.0
 
+
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
@@ -642,6 +683,8 @@ class AccountMoveLine(models.Model):
     unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
     manual_quantity = fields.Float(string="Quantity", store=True)
     date_approve = fields.Datetime(string="Order Deadline", readonly=False)
+
+
     price_total = fields.Monetary(
         string='Total',
         compute='_compute_totals', store=True,
@@ -653,7 +696,8 @@ class AccountMoveLine(models.Model):
 
     )
 
-    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate', 'manual_quantity', 'price_currency')
+    @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id', 'subtotal', 'unrounded_transfer_rate',
+                 'manual_quantity', 'price_currency')
     def _compute_totals(self):
         for line in self:
             if line.display_type != 'product':
