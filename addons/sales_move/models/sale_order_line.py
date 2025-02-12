@@ -2,6 +2,12 @@ from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools import float_is_zero, float_compare, float_round
 import math
+from datetime import date
+
+READONLY_FIELD_STATES = {
+    state: [('readonly', True)]
+    for state in {'cancel'}
+}
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
@@ -64,6 +70,22 @@ class SaleOrder(models.Model):
         currency_field='currency_id',
         store=True
     )
+    date_order = fields.Datetime(
+        string="Order Date",
+        required=True, readonly=False,
+        states=READONLY_FIELD_STATES,
+        help="Creation date of draft/sent orders,\nConfirmation date of confirmed orders.",
+        default=fields.Datetime.now)
+
+    is_date_order_past = fields.Boolean(
+        compute="_compute_is_date_order_past", store=True
+    )
+    @api.depends('date_order')
+    def _compute_is_date_order_past(self):
+        for order in self:
+            order.is_date_order_past = order.date_order and order.date_order.date() < date.today()
+
+
     @api.depends('amount_total', 'payment_amount')
     def _compute_unfixed_balance(self):
         for order in self:

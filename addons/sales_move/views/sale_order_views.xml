@@ -10,11 +10,18 @@
                     <button name="action_convert_to_sales_order" string="Convert to Sales Order" type="object" states="unfixed" class="btn-primary" />
                     <button name="action_back_to_unpicked" string="unfixed" type="object" states="sale" class="btn-secondary"/>
                 </xpath>
+                <field name="date_order" position="attributes">
+                     <attribute name="readonly">0</attribute>
+                </field>
+                <xpath expr="//field[@name='date_order']" position="attributes">
+                    <attribute name="decoration-danger">is_date_order_past</attribute>
+                </xpath>
                 <xpath expr="//field[@name='state']" position="attributes">
                     <attribute name="widget">statusbar</attribute>
                     <attribute name="statusbar_visible">draft,unfixed,sale,done</attribute>
                 </xpath>
                 <xpath expr="//field[@name='partner_id']" position="after">
+                 <field name="is_date_order_past" invisible="1"/>
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
