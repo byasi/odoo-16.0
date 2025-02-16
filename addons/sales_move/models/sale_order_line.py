@@ -115,11 +115,12 @@ class SaleOrder(models.Model):
                 'amount_tax': amount_tax,
                 'amount_total': amount_untaxed + amount_tax,
             })
-            
+
     @api.depends('date_order')
     def _compute_is_date_order_past(self):
         for order in self:
-            order.is_date_order_past = order.date_order and order.date_order.date() < date.today()
+            order.is_date_order_past = order.date_order and order.date_order.date() < fields.Date.today()
+            print(f"OrderPast: {order.is_date_order_past}")
 
 
     @api.depends('amount_total', 'payment_amount')
