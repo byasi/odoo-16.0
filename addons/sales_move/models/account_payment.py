@@ -4,7 +4,7 @@ class AccountMove(models.Model):
     _inherit = "account.move"
 
     invoice_date = fields.Date(default=lambda self: self._get_default_invoice_date(),readonly=False)
-    date = fields.Date(default=lambda self: self._get_default_invoice_date())
+    date = fields.Date(default=lambda self: self._get_default_invoice_date(), readonly=False)
 
     is_invoice_date_past = fields.Boolean(
         compute="_compute_is_date_approve_past", store=True
