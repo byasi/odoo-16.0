@@ -3,8 +3,15 @@ from datetime import date
 class AccountMove(models.Model):
     _inherit = "account.move"
 
-    invoice_date = fields.Date(default=lambda self: self._get_default_invoice_date(),readonly=False)
-    date = fields.Date(default=lambda self: self._get_default_invoice_date(), readonly=False)
+    invoice_date = fields.Date(
+        default=lambda self: self._get_default_invoice_date(),
+        readonly=False,
+        # states={'posted': [('readonly', False)], 'cancel': [('readonly', True)]},
+        )
+    date = fields.Date(default=lambda self: self._get_default_invoice_date(), 
+            readonly=False,
+            states={'posted': [('readonly', False)], 'cancel': [('readonly', True)]},
+            )
 
     is_invoice_date_past = fields.Boolean(
         compute="_compute_is_date_approve_past", store=True

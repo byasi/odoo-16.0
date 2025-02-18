@@ -19,6 +19,13 @@
                 </xpath>
 
                 <xpath expr="//group[@id='header_right_group']" position="inside">
+
+                </xpath>
+                <xpath expr="//field[@name='invoice_date']" position="after">
+                    <field name="date" string="Accounting Date" attrs="{
+                        'invisible': [('move_type', 'in', ('out_invoice', 'out_refund', 'out_receipt')), ('quick_edit_mode', '=', False)],
+                    }" />
+
                 </xpath>
                 <xpath expr="//field[@name='tax_totals']" position="replace">
                     <field name="tax_totals" widget="account-tax-totals-field" nolabel="1" colspan="2" attrs="{'invisible': [('move_type', 'in', ('in_invoice', 'in_refund', 'in_receipt'))]}"/>

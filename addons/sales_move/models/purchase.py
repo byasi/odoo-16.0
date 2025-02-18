@@ -344,9 +344,11 @@ class PurchaseOrderLine(models.Model):
         res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
         effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
         if effective_process_wt == 0:
+            quantity = self.first_process_wt
             unrounded_transfer_rate = self.price_unit
             subTotal = self.product_qty * unrounded_transfer_rate
         else:
+            quantity = effective_process_wt
             unrounded_transfer_rate = self.price_subtotal / effective_process_wt
             subTotal = effective_process_wt * unrounded_transfer_rate
 
@@ -355,7 +357,8 @@ class PurchaseOrderLine(models.Model):
             'price_unit': unrounded_transfer_rate,
             'subtotal': subTotal,
             'unrounded_transfer_rate': unrounded_transfer_rate,
-            'manual_quantity': self.manual_first_process,
+            'manual_quantity': effective_process_wt,
+            'quantity': quantity,
             'price_currency': self.price_currency.id,
             'date_approve': self.date_approve,
         })
@@ -683,7 +686,13 @@ class AccountMoveLine(models.Model):
     unrounded_transfer_rate = fields.Float(string="Unrounded Price Unit", store=True)
     manual_quantity = fields.Float(string="Quantity", store=True)
     date_approve = fields.Datetime(string="Order Deadline", readonly=False)
-
+    quantity = fields.Float(
+        string='Quantity',
+         store=True, readonly=False, precompute=True,
+        digits='Product Unit of Measure',
+        help="The optional quantity expressed by this line, eg: number of product sold. "
+             "The quantity is not a legal requirement but is very useful for some reports.",
+    )
 
     price_total = fields.Monetary(
         string='Total',
