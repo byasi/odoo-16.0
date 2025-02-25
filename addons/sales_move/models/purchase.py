@@ -344,11 +344,11 @@ class PurchaseOrderLine(models.Model):
         res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
         effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
         if effective_process_wt == 0:
-            quantity = self.first_process_wt
+            quantity = self.first_process_wt or 1.0
             unrounded_transfer_rate = self.price_unit
             subTotal = self.product_qty * unrounded_transfer_rate
         else:
-            quantity = effective_process_wt
+            quantity = effective_process_wt or 1.0
             unrounded_transfer_rate = self.price_subtotal / effective_process_wt
             subTotal = effective_process_wt * unrounded_transfer_rate
 
