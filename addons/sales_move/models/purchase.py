@@ -315,9 +315,9 @@ class PurchaseOrderLine(models.Model):
     def _check_product_quality_range(self):
         for record in self:
             if record.first_process_wt > 0 and record.second_process_wt > 0:
-                if not (60 <= record.product_quality <= 98):
+                if not (60 <= record.product_quality <= 100):
                     raise ValidationError(_(
-                        "Product Quality must be between 60 and 98."
+                        "Product Quality must be between 60 and 100."
                     ))
 
     @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
