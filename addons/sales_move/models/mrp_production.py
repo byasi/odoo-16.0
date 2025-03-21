@@ -153,12 +153,15 @@ class MrpProduction(models.Model):
                 # If the product is tracked by lot, respect the existing move lines
                 if move.product_id.tracking != 'none':
                     total_qty_done = sum(move.move_line_ids.mapped('qty_done'))
-                    if total_qty_done > new_qty:
-                        raise UserError(_("The total quantity of selected lots (%s) exceeds the required quantity (%s).") % (total_qty_done, new_qty))
-                    elif total_qty_done < new_qty:
+                    total_qty_done_rounded = float_round(total_qty_done, precision_digits=2)
+                    new_qty_rounded = float_round(new_qty, precision_digits=2)
+
+                    if total_qty_done_rounded > new_qty_rounded:
+                        raise UserError(_("The total quantity of selected lots (%s) exceeds the required quantity (%s).") % (total_qty_done_rounded, new_qty_rounded))
+                    elif total_qty_done_rounded < new_qty_rounded:
                         # If the total quantity in move lines is less than the required quantity,
                         # create a new move line for the remaining quantity
-                        remaining_qty = new_qty - total_qty_done
+                        remaining_qty = new_qty_rounded - total_qty_done_rounded
                         self.env['stock.move.line'].create({
                             'move_id': move.id,
                             'product_id': move.product_id.id,
@@ -187,7 +190,7 @@ class MrpProduction(models.Model):
         if procurements:
             self.env['procurement.group'].run(procurements)
 
-        return update_info 
+        return update_info
 
 class ChangeProductionQty(models.TransientModel):
     _inherit = 'change.production.qty'
@@ -240,8 +243,6 @@ class ChangeProductionQty(models.TransientModel):
                 if wo.qty_produced == wo.qty_production and wo.state == 'progress':
                     wo.state = 'done'
                 # assign moves; last operation receive all unassigned moves
-                # TODO: following could be put in a function as it is similar as code in _workorders_create
-                # TODO: only needed when creating new moves
                 moves_raw = production.move_raw_ids.filtered(lambda move: move.operation_id == operation and move.state not in ('done', 'cancel'))
                 if wo == production.workorder_ids[-1]:
                     moves_raw |= production.move_raw_ids.filtered(lambda move: not move.operation_id)

@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import _, models, fields, api
 from odoo.exceptions import UserError, ValidationError
 import math
 
@@ -169,6 +169,9 @@ class StockMove(models.Model):
                                     remaining_quantity -= taken_quantity
                                     if float_is_zero(remaining_quantity, precision_rounding=rounding):
                                         break
+                            # Do not fall back to FIFO if manually selected lots are not sufficient
+                            if not float_is_zero(remaining_quantity, precision_rounding=rounding):
+                                raise UserError(_("Not enough quantity available for the selected lots."))
                         else:
                             move_line_vals_list.append(move._prepare_move_line_vals(quantity=missing_reserved_quantity))
                     assigned_moves_ids.add(move.id)
@@ -214,6 +217,7 @@ class StockMove(models.Model):
                                         break
                             if not float_is_zero(remaining_quantity, precision_rounding=rounding):
                                 # Fall back to available quants (without FIFO sorting) for remaining quantity
+                                #  raise UserError(_("Not enough quantity available for the selected lots."))
                                 available_quantity = move._get_available_quantity(move.location_id, package_id=forced_package_id)
                                 if available_quantity > 0:
                                     taken_quantity = move._update_reserved_quantity(remaining_quantity, available_quantity, move.location_id, package_id=forced_package_id, strict=False)
