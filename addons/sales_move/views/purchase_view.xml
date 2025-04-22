@@ -78,11 +78,16 @@
                     <!-- <field name="selected_product_id" string="Select Product"/> -->
                 </xpath>
 
+
                 <xpath expr="//field[@name='product_qty']" position="before">
                     <field name="original_qty_g" string="Original Qty" optional="hide"/>
                     <field name="gross_weight" string="Gross Weight" optional="show"/>
+                    <field name="is_pex_drc" string="Is PEX-DRC" invisible="1"/>
                     <field name="first_process_wt" string="Actual Process Weight" optional="show"/>
-                    <field name="manual_first_process" string="Manual First Process Weight" optional="hide"/>
+                    <field name="manual_first_process"
+                        string="Manual First Process Weight"
+                        optional="hide"
+                        attrs="{'invisible': [('is_pex_drc', '=', True)], 'readonly': [('is_pex_drc', '=', True)]}" />
                     <field name="second_process_wt" string="Second Process Weight" optional="show"/>
                     <field name="product_quality" string="Actual Product Quality" optional="show"/>
                     <field name="manual_product_quality" string="Manual Product Quality" optional="hide"/>
@@ -99,6 +104,7 @@
                     <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
+
                 <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
                     <table class="oe_right">
                         <tbody>

@@ -19,6 +19,15 @@ class AccountMove(models.Model):
     is_date_past = fields.Boolean(
         compute="_compute_is_date_past", store=True
     )
+    
+    is_pex_drc = fields.Boolean(compute='_compute_is_pex_drc')
+
+    @api.depends_context('allowed_company_ids')
+    def _compute_is_pex_drc(self):
+        for record in self:
+            current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+            current_company = self.env['res.company'].browse(current_company_id)
+            record.is_pex_drc = current_company.name == 'PEX-DRC' 
 
 
     @api.depends('invoice_date')

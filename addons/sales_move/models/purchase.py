@@ -39,6 +39,15 @@ class PurchaseOrder(models.Model):
                                        default=lambda self: self.env.ref('uom.product_uom_ton').id)
     unit_convention = fields.Many2one('uom.uom', string="Unit Convention")
     x_factor = fields.Float(string="Xfactor", default=92)
+    # @api.model
+    # def _default_x_factor(self):
+    #     # Access the current company from the context
+    #     current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+    #     current_company = self.env['res.company'].browse(current_company_id)
+
+    #     if current_company.name == 'PEX-DRC':
+    #         return 100
+    #     return 92 
     net_total = fields.Monetary(string="Net Total", currency_field='transaction_currency', compute="_compute_net_total",
                                 store=True)
     # deductions = fields.Monetary(string="Deductions",currency_field='transaction_currency', related="total_deductions")
@@ -287,7 +296,20 @@ class PurchaseOrderLine(models.Model):
     product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
     manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality",
                                           store=True, readonly=False)
-    manual_first_process = fields.Float(string="Manual First Process Weight", store=True)
+    # Computed field to determine if the current company is 'PEX-DRC'
+    is_pex_drc = fields.Boolean(compute='_compute_is_pex_drc', store=False)
+    @api.depends_context('allowed_company_ids')  # This makes it recompute when company context changes
+    def _compute_is_pex_drc(self):
+        for record in self:
+            current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+            current_company = self.env['res.company'].browse(current_company_id)
+            record.is_pex_drc = current_company.name == 'PEX-DRC'
+
+    manual_first_process = fields.Float(
+        string="Manual First Process Weight",
+        store=True,
+        readonly=False,
+    )
     original_product_quality = fields.Float(string="Original Product Quality",
                                             compute="_compute_original_product_quality", readonly=True)
     product_quality_difference = fields.Float(string="PQ difference", compute="_compute_product_quality_difference",
