@@ -6,9 +6,9 @@
             <field name="model">account.move</field>
             <field name="inherit_id" ref="account.view_move_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//button[@name='action_register_payment']" position="attributes">
-                    <attribute name="invisible">[('is_pex_drc', '=', True)]</attribute>
-                </xpath>
+                <!-- <xpath expr="//button[@name='action_register_payment']" position="attributes">
+                    <attribute name="invisible">[('is_pex_drc', '=', False)]</attribute>
+                </xpath> -->
                 <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
                     <field name="tax_totals" widget="account-tax-totals-field" nolabel="1" colspan="2" attrs="{'readonly': ['|', ('state', '!=', 'draft'), '&amp;', ('move_type', 'not in', ('in_invoice', 'in_refund', 'in_receipt')), ('quick_edit_mode', '=', False)]}" invisible="1"/>
                     <table class="oe_right">

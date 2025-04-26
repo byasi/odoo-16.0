@@ -11,6 +11,10 @@ _logger = logging.getLogger(__name__)
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     currency_id = fields.Many2one('res.currency', string="Currency", invisible=True)
+    purchase_method = fields.Selection([
+        ('purchase_1', 'Purchase 1'),
+        ('purchase_2', 'Purchase 2')
+    ], string="Purchase Method", default='purchase_1', required=True)
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency', required=True)
     product_price = fields.Monetary(string="Product Price")
     deduction_head = fields.Float(string="Deduction Head")
@@ -35,10 +39,20 @@ class PurchaseOrder(models.Model):
 
     transaction_currency = fields.Many2one('res.currency', string="Transaction Currency",
                                            default=lambda self: self.env.ref('base.USD').id)
+    
+    @api.depends('purchase_method')
+    def _compute_transaction_unit(self):
+        for record in self:
+            if record.purchase_method == 'purchase_2':
+                record.transaction_unit = self.env.ref('uom.product_uom_gram').id
+            else:
+                record.transaction_unit = self.env.ref('uom.product_uom_ton').id
+
     transaction_unit = fields.Many2one('uom.uom', string="Transaction Unit",
-                                       default=lambda self: self.env.ref('uom.product_uom_ton').id)
+                                     compute='_compute_transaction_unit',
+                                     store=True)
     unit_convention = fields.Many2one('uom.uom', string="Unit Convention")
-    x_factor = fields.Float(string="Xfactor", default=92)
+    x_factor = fields.Float(string="Xfactor", compute='_compute_x_factor', store=True)
     # @api.model
     # def _default_x_factor(self):
     #     # Access the current company from the context
@@ -132,7 +146,7 @@ class PurchaseOrder(models.Model):
             else:
                 order.net_price = self.custom_round_down(order.market_price) if order.market_price else 0.
 
-    @api.depends('convention_market_unit', 'net_price', 'transaction_currency', 'market_price_currency')
+    @api.depends('convention_market_unit', 'net_price', 'transaction_currency', 'market_price_currency', 'purchase_method')
     def _compute_transaction_price_per_unit(self):
         for order in self:
             if order.convention_market_unit and order.net_price and order.transaction_currency:
@@ -142,8 +156,9 @@ class PurchaseOrder(models.Model):
                     order.company_id,
                     order.date_order or fields.Date.today()
                 )
-                # transaction_price_per_unit = order.convention_market_unit * converted_market_price
-                transaction_price_per_unit = converted_market_price / 3
+                # Use different divisor based on purchase method
+                divisor = 31.1034786 if order.purchase_method == 'purchase_2' else 3
+                transaction_price_per_unit = converted_market_price / divisor
                 order.transaction_price_per_unit = self.custom_round_down(transaction_price_per_unit)
             else:
                 order.transaction_price_per_unit = 0.0
@@ -268,6 +283,14 @@ class PurchaseOrder(models.Model):
                     "Market Price is required and cannot be zero.\n"
                     "Please set a valid Market Price before saving."
                 ))
+
+    @api.depends('purchase_method')
+    def _compute_x_factor(self):
+        for record in self:
+            if record.purchase_method == 'purchase_2':
+                record.x_factor = 100
+            else:
+                record.x_factor = 92
 
 
 class PurchaseOrderLine(models.Model):
@@ -519,6 +542,7 @@ class PurchaseOrderLine(models.Model):
                     'custom_round_down': self.custom_round_down
                 }
                 formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')
+                #  custom_round_down(2302.842/dd)-219.318
                 if formula_dict:
                     result = eval(formula_dict, { }, local_variables)
                     line.product_quality = self.custom_round_down(abs(result))

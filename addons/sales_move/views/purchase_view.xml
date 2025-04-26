@@ -53,6 +53,7 @@
                 <xpath expr="//field[@name='currency_id']" position="replace"/>
 
                 <xpath expr="//field[@name='company_id']" position="after">
+                    <field name="purchase_method" string="Purchase Method"/>
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price" required="1"/>
                     <field name="discount" string="Discount/additions"/>
