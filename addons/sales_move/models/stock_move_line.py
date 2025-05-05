@@ -23,6 +23,14 @@ class StockMoveLine(models.Model):
     average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quantity", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_quantity", store=True)
     lot_name = fields.Char(string="Lot Name", copy=False)
+    is_pex_drc = fields.Boolean(compute='_compute_is_pex_drc', store=False)
+
+    @api.depends_context('allowed_company_ids')
+    def _compute_is_pex_drc(self):
+        for record in self:
+            current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+            current_company = self.env['res.company'].browse(current_company_id)
+            record.is_pex_drc = current_company.name == 'PEX-DRC'
 
     @api.model
     def create(self, vals):
@@ -30,8 +38,14 @@ class StockMoveLine(models.Model):
         if not vals.get('lot_name'):  # Generate only if no lot_name is provided
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
+            # Check if current company is PEX-DRC
+            current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+            current_company = self.env['res.company'].browse(current_company_id)
+            is_pex_drc = current_company.name == 'PEX-DRC'
+            # Modify the search pattern based on company
+            search_pattern = f"{date_prefix}P-%" if is_pex_drc else f"{date_prefix}-%"
             # Find the highest sequence for the current date prefix
-            last_lot = self.search([('lot_name', 'like', f"{date_prefix}-%")], order="lot_name desc", limit=1)
+            last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
             if last_lot:
                 # Extract and increment the sequence number
                 last_sequence = int(last_lot.lot_name.split('-')[-1])
@@ -39,8 +53,9 @@ class StockMoveLine(models.Model):
             else:
                 # Start the sequence at 001 if no lots exist for the day
                 new_sequence = "001"
-            # Generate the lot name
-            vals['lot_name'] = f"{date_prefix}-{new_sequence}"
+
+            # Generate the lot name based on company
+            vals['lot_name'] = f"{date_prefix}P-{new_sequence}" if is_pex_drc else f"{date_prefix}-{new_sequence}"
         return super(StockMoveLine, self).create(vals)
 
     @api.model
@@ -50,8 +65,17 @@ class StockMoveLine(models.Model):
         if 'lot_name' in fields_list:
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
+            
+            # Check if current company is PEX-DRC
+            current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
+            current_company = self.env['res.company'].browse(current_company_id)
+            is_pex_drc = current_company.name == 'PEX-DRC'
+            
+            # Modify the search pattern based on company
+            search_pattern = f"{date_prefix}P-%" if is_pex_drc else f"{date_prefix}-%"
+            
             # Find the highest sequence for the current date prefix
-            last_lot = self.search([('lot_name', 'like', f"{date_prefix}-%")], order="lot_name desc", limit=1)
+            last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
             if last_lot:
                 # Extract and increment the sequence number
                 last_sequence = int(last_lot.lot_name.split('-')[-1])
@@ -59,8 +83,9 @@ class StockMoveLine(models.Model):
             else:
                 # Start the sequence at 001 if no lots exist for the day
                 new_sequence = "001"
-            # Generate the lot name
-            vals['lot_name'] = f"{date_prefix}-{new_sequence}"
+            
+            # Generate the lot name based on company
+            vals['lot_name'] = f"{date_prefix}P-{new_sequence}" if is_pex_drc else f"{date_prefix}-{new_sequence}"
         return vals
 
     # @api.constrains('lot_name')
