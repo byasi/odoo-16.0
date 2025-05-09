@@ -8,7 +8,7 @@
             <field name="arch" type="xml">
                 <!-- Add unfixed_balance to invoice lines -->
                 <xpath expr="//field[@name='invoice_line_ids']/tree//field[@name='price_subtotal']" position="after">
-                    <field name="unfixed_balance" optional="hide"/>
+                    <field name="unfixed_balance" optional="show"/>
                 </xpath>
                 
                 <!-- <xpath expr="//button[@name='action_register_payment']" position="attributes">
@@ -32,6 +32,14 @@
                                 </td>
                                 <td class="o_list_monetary" style="padding-left: 80px;">
                                     <field name="amount_total" string="Total" readonly="1"/>
+                                </td>
+                            </tr>
+                            <tr attrs="{'invisible': [('total_unfixed_balance', '=', 0.0)]}">
+                                <td class="o_td_label" style="padding-left: 600px;">
+                                    <span class="o_form_label o_tax_total_label" style="white-space: nowrap;">Total to Pay</span>
+                                </td>
+                                <td class="o_list_monetary" style="padding-left: 80px;">
+                                    <field name="total_unfixed_balance" string="Total to Pay" readonly="1"/>
                                 </td>
                             </tr>
                         </tbody>
