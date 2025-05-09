@@ -1,3 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_purchase_order_deductions,access.purchase.order.deductions,model_purchase_order_deductions,,1,1,1,1
 access_sale_order_unfixedpricewizard,access.sale.order.unfixedpricewizard,model_sale_order_unfixedpricewizard,,1,1,1,1
+access_customer_stock_report_user,customer.stock.report.user,model_customer_stock_report,stock.group_stock_user,1,1,1,0
+access_customer_stock_report_manager,customer.stock.report.manager,model_customer_stock_report,stock.group_stock_manager,1,1,1,1
+access_set_opening_stock_wizard,set.opening.stock.wizard,model_set_opening_stock_wizard,stock.group_stock_manager,1,1,1,1
+access_set_opening_stock_line_wizard,set.opening.stock.line.wizard,model_set_opening_stock_line_wizard,stock.group_stock_manager,1,1,1,1

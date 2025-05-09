@@ -74,8 +74,18 @@ class AccountPayment(models.Model):
         When a sales order is selected, update the amount in the payment.
         """
         if self.sales_order_id:
-            # base_currency = self.env.user
-            self.amount = self.sales_order_id.unfixed_balance
+            # Get the related invoice for this sales order
+            invoice = self.env['account.move'].search([
+                ('invoice_origin', '=', self.sales_order_id.name),
+                ('move_type', '=', 'out_invoice'),
+                ('state', '!=', 'cancel')
+            ], limit=1)
+            if invoice:
+                # Sum up the unfixed balance from all invoice lines
+                total_unfixed_balance = sum(invoice.invoice_line_ids.mapped('unfixed_balance'))
+                self.amount = total_unfixed_balance
+            else:
+                self.amount = self.sales_order_id.unfixed_balance
         else:
             self.amount = 0.0
 
@@ -131,13 +141,6 @@ class AccountPaymentRegister(models.TransientModel):
         compute="_compute_is_payment_date_past", store=True
     )
 
-
-    @api.depends('payment_date')
-    def _compute_is_payment_date_past(self):
-        for order in self:
-            order.is_payment_date_past = order.payment_date and order.payment_date < date.today()
-
-
     @api.model
     def default_get(self, fields_list):
         defaults = super().default_get(fields_list)
@@ -146,7 +149,19 @@ class AccountPaymentRegister(models.TransientModel):
             invoice = self.env['account.move'].browse(active_id)
             if invoice and invoice.invoice_date:
                 defaults['payment_date'] = invoice.invoice_date
+                
+            # Calculate total unfixed balance
+            total_unfixed_balance = sum(invoice.invoice_line_ids.mapped('unfixed_balance'))
+            
+            # If unfixed balance is greater than zero, use it instead of the total amount
+            if total_unfixed_balance > 0:
+                defaults['amount'] = total_unfixed_balance
         return defaults
+
+    @api.depends('payment_date')
+    def _compute_is_payment_date_past(self):
+        for order in self:
+            order.is_payment_date_past = order.payment_date and order.payment_date < date.today()
 
     @api.depends('currency')
     def _compute_currency_rate(self):

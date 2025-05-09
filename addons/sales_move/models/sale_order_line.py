@@ -313,6 +313,12 @@ class SaleOrderLine(models.Model):
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True)
     manual_quantity = fields.Float(string="Manual Quantity", store=True)
+    unfixed_balance = fields.Monetary(
+        string="Unfixed Balance",
+        compute="_compute_unfixed_balance",
+        currency_field='currency_id',
+        store=True
+    )
 
     price_unit = fields.Float(
         string="Unit Price",
@@ -512,6 +518,17 @@ class SaleOrderLine(models.Model):
             if float_compare(product_uom_qty, line.product_uom_qty, precision_rounding=line.product_uom.rounding) != 0:
                 line.product_uom_qty = product_uom_qty
 
+    @api.depends('order_id.unfixed_balance', 'price_subtotal', 'order_id.amount_total')
+    def _compute_unfixed_balance(self):
+        for line in self:
+            if line.order_id.amount_total:
+                # Calculate the proportion of the line's subtotal to the total order amount
+                proportion = line.price_subtotal / line.order_id.amount_total
+                # Apply the same proportion to the unfixed balance
+                line.unfixed_balance = line.order_id.unfixed_balance * proportion
+            else:
+                line.unfixed_balance = 0.0
+
     def _prepare_invoice_line(self, **optional_values):
         """
         Prepare the dict of values to create the new invoice line for a sales order line.
@@ -519,6 +536,7 @@ class SaleOrderLine(models.Model):
         res = super(SaleOrderLine, self)._prepare_invoice_line(**optional_values)
         res.update({
             'manual_quantity_so': self.manual_quantity,
+            'unfixed_balance': self.unfixed_balance,
         })
         return res
 
@@ -526,6 +544,11 @@ class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
     manual_quantity_so = fields.Float(string="Manual Quantity", store=True)
+    unfixed_balance = fields.Monetary(
+        string="Unfixed Balance",
+        currency_field='currency_id',
+        store=True
+    )
     price_total = fields.Monetary(
         string='Total',
         compute='_compute_totals', store=True,
