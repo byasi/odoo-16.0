@@ -34,6 +34,41 @@ class AccountMove(models.Model):
         for order in self:
             order.is_date_past = order.date and order.date < date.today()
 
+    @api.model
+    def _get_outstanding_info_JSON(self):
+        # Get the sales order from the invoice
+        sales_order = self.env['sale.order'].search([('name', '=', self.invoice_origin)], limit=1)
+        if not sales_order:
+            return super()._get_outstanding_info_JSON()  # fallback to default
+
+        outstanding_credits = []
+        for payment in sales_order.selected_payment_ids:
+            # Only include payments that are linked to this sales order
+            if (
+                payment.state in ('posted', 'reconciled')
+                and payment.amount_residual > 0
+                and payment.sales_order_id and payment.sales_order_id.id == sales_order.id
+            ):
+                outstanding_credits.append({
+                    'journal_name': payment.journal_id.name,
+                    'amount': payment.amount_residual,
+                    'currency': payment.currency_id.name,
+                    'payment_id': payment.id,
+                    'payment_date': payment.payment_date,
+                    'ref': payment.ref,
+                })
+
+        if not outstanding_credits:
+            # No payments for this sales order, fallback to default
+            return super()._get_outstanding_info_JSON()
+
+        # Only show these payments, do not merge with others
+        return {
+            'title': 'Outstanding credits',
+            'outstanding': True,
+            'content': outstanding_credits,
+        }
+
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
