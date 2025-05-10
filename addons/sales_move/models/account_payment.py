@@ -141,61 +141,22 @@ class AccountPaymentRegister(models.TransientModel):
         compute="_compute_is_payment_date_past", store=True
     )
 
-    @api.model
-    def default_get(self, fields_list):
-        defaults = super().default_get(fields_list)
-        active_id = self._context.get('active_id')
-        if active_id:
-            invoice = self.env['account.move'].browse(active_id)
-            if invoice and invoice.invoice_date:
-                defaults['payment_date'] = invoice.invoice_date
-            # Use remaining_unfixed_balance if it's greater than zero
-            if invoice.remaining_unfixed_balance > 0:
-                amount = invoice.remaining_unfixed_balance
-                # Convert to payment currency if needed
-                currency_id = defaults.get('currency_id') or invoice.currency_id.id
-                payment_currency = self.env['res.currency'].browse(currency_id)
-                if payment_currency and payment_currency != invoice.currency_id:
-                    amount = invoice.currency_id._convert(
-                        amount,
-                        payment_currency,
-                        invoice.company_id,
-                        fields.Date.context_today(invoice)
-                    )
-                defaults['amount'] = amount
-        return defaults
-
-    @api.depends('amount', 'currency_id', 'company_id', 'journal_id', 'payment_date')
-    def _compute_payment_difference(self):
-        for wizard in self:
-            invoice = wizard._get_invoice_for_unfixed_balance()
-            if invoice and hasattr(invoice, 'total_unfixed_balance') and invoice.total_unfixed_balance > 0:
-                reference_amount = invoice.total_unfixed_balance
-                # Convert reference_amount to payment currency if needed
-                if wizard.currency_id and invoice.currency_id and wizard.currency_id != invoice.currency_id:
-                    reference_amount = invoice.currency_id._convert(
-                        reference_amount,
-                        wizard.currency_id,
-                        invoice.company_id,
-                        fields.Date.context_today(wizard)
-                    )
-            else:
-                reference_amount = sum(invoice.mapped('amount_residual')) if invoice else 0.0
-            wizard.payment_difference = reference_amount - wizard.amount
-
-    def _get_invoice_for_unfixed_balance(self):
-        active_id = self._context.get('active_id')
-        if active_id:
-            return self.env['account.move'].browse(active_id)
-        return self.env['account.move']
-
-    @api.depends('amount', 'currency_id', 'company_id', 'journal_id', 'payment_date')
-    def _compute_can_edit_wizard(self):
-        super()._compute_can_edit_wizard()
-        for wizard in self:
-            invoice = wizard._get_invoice_for_unfixed_balance()
-            if invoice and hasattr(invoice, 'total_unfixed_balance') and invoice.total_unfixed_balance > 0:
-                wizard.can_edit_wizard = abs(wizard.amount - invoice.total_unfixed_balance) < 0.01
+    # @api.model
+    # def default_get(self, fields_list):
+    #     defaults = super().default_get(fields_list)
+    #     active_id = self._context.get('active_id')
+    #     if active_id:
+    #         invoice = self.env['account.move'].browse(active_id)
+    #         if invoice and invoice.invoice_date:
+    #             defaults['payment_date'] = invoice.invoice_date
+                
+    #         # Calculate total unfixed balance
+    #         total_unfixed_balance = sum(invoice.invoice_line_ids.mapped('unfixed_balance'))
+            
+    #         # If unfixed balance is greater than zero, use it instead of the total amount
+    #         if total_unfixed_balance > 0:
+    #             defaults['amount'] = total_unfixed_balance
+    #     return defaults
 
     @api.depends('payment_date')
     def _compute_is_payment_date_past(self):
@@ -215,35 +176,6 @@ class AccountPaymentRegister(models.TransientModel):
             'view_mode': 'tree,form',
             'target': 'current',
         }
-
-    @api.onchange('journal_id')
-    def _onchange_journal_id_unfixed_balance(self):
-        invoice = self._get_invoice_for_unfixed_balance()
-        if invoice and hasattr(invoice, 'remaining_unfixed_balance') and invoice.remaining_unfixed_balance > 0:
-            amount = invoice.remaining_unfixed_balance
-            if self.currency_id and invoice.currency_id and self.currency_id != invoice.currency_id:
-                amount = invoice.currency_id._convert(
-                    amount,
-                    self.currency_id,
-                    invoice.company_id,
-                    fields.Date.context_today(self)
-                )
-            self.amount = amount
-
-    @api.onchange('currency_id')
-    def _onchange_currency_id_unfixed_balance(self):
-        invoice = self._get_invoice_for_unfixed_balance()
-        if invoice and hasattr(invoice, 'remaining_unfixed_balance') and invoice.remaining_unfixed_balance > 0:
-            amount = invoice.remaining_unfixed_balance
-            # Convert the amount to the selected currency if needed
-            if self.currency_id and invoice.currency_id and self.currency_id != invoice.currency_id:
-                amount = invoice.currency_id._convert(
-                    amount,
-                    self.currency_id,
-                    invoice.company_id,
-                    fields.Date.context_today(self)
-                )
-            self.amount = amount
 
 class CurrencyRate(models.Model):
     _inherit = "res.currency.rate"

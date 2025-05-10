@@ -23,7 +23,6 @@
         'views/account_payment_register_views.xml',
         'views/sale_order_views.xml',
         'views/account_move_views.xml',
-        'views/customer_stock_report_views.xml',
         'wizard/unfixed_price_view.xml',
     ],
     'assets': {
