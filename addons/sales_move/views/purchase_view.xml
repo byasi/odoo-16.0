@@ -135,10 +135,10 @@
                             </tr>
                             <tr>
                                 <td class="o_td_label" style="padding-right: 20px;">
-                                    <span class="o_form_label o_tax_total_label">Deductions</span>
+                                    <span class="o_form_label o_tax_total_label">Fix Price</span>
                                 </td>
                                 <td class="o_list_monetary">
-                                    <field name="deductions" string="Deductions" />
+                                    <field name="fix_price" string="Fix Price" />
                                 </td>
                             </tr>
 
@@ -154,7 +154,17 @@
                     </table>
                 </xpath>
 
-
+                <xpath expr="//header" position="inside">
+                    <button name="action_convert_to_purchase_order" string="Convert to Purchase Order" type="object" states="unfixed" class="btn-primary" />
+                    <button name="action_back_to_unfixed" string="Unfixed" type="object" states="purchase" class="btn-secondary"/>
+                </xpath>
+                <xpath expr="//field[@name='state']" position="attributes">
+                    <attribute name="widget">statusbar</attribute>
+                    <attribute name="statusbar_visible">draft,unfixed,purchase,done</attribute>
+                </xpath>
+                <xpath expr="//button[@name='action_create_invoice']" position="attributes">
+                    <attribute name="attrs">{'invisible': [('state', '=', 'unfixed')]}</attribute>
+                </xpath>
             </field>
         </record>
         <record id="view_purchase_order_kpis_tree_inherit" model="ir.ui.view">

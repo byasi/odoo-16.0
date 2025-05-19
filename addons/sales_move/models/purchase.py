@@ -11,6 +11,10 @@ _logger = logging.getLogger(__name__)
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
     currency_id = fields.Many2one('res.currency', string="Currency", invisible=True)
+    state = fields.Selection(
+        selection_add=[('unfixed', 'Unfixed')],  # Add new state
+        ondelete={'unfixed': 'set default'}
+    )
     purchase_method = fields.Selection([
         ('purchase_1', 'Purchase 1'),
         ('purchase_2', 'Purchase 2')
@@ -292,7 +296,20 @@ class PurchaseOrder(models.Model):
             else:
                 record.x_factor = 92
 
+    def action_convert_to_purchase_order(self):
+        """ Convert 'Unfixed' to 'Purchase Order' state."""
+        for order in self:
+            if order.state == 'unfixed':
+                order.state = 'purchase'
 
+    def action_back_to_unfixed(self):
+        """Convert 'Purchase Order' back to 'unfixed'."""
+        for order in self:
+            if order.state == 'purchase':
+                order.state = 'unfixed'
+
+# Unfixed  logic
+    fix_price = fields.Float(string="Fix Price")
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
