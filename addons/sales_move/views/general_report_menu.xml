@@ -1,0 +1,4 @@
+<odoo>
+    <menuitem id="menu_general_report_root" name="General Ledger Report" parent="stock.menu_warehouse_report" sequence="100"/>
+    <menuitem id="menu_general_report_wizard" name="General Ledger Report" parent="menu_general_report_root" action="action_general_report_wizard"/>
+</odoo> 

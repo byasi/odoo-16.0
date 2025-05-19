@@ -24,6 +24,8 @@
         'views/sale_order_views.xml',
         'views/account_move_views.xml',
         'wizard/unfixed_price_view.xml',
+        'views/general_report_wizard_view.xml',
+        'views/general_report_menu.xml',
     ],
     'assets': {
         'web.assets_backend': [
