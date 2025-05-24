@@ -11,18 +11,19 @@
                 </group>
                 <footer>
                     <button name="action_generate_report" type="object" string="Generate Report" class="btn-primary"/>
+                    <button name="action_print_pdf" type="object" string="Print PDF" class="btn-secondary"/>
                 </footer>
                 <field name="line_ids">
                     <tree editable="bottom">
                         <field name="doc_no"/>
                         <field name="doc_date"/>
                         <field name="narration"/>
-                        <field name="amount_debit"/>
-                        <field name="amount_credit"/>
-                        <field name="amount_balance"/>
-                        <field name="xau_debit"/>
-                        <field name="xau_credit"/>
-                        <field name="xau_balance"/>
+                        <field name="amount_debit" widget="float_time"/>
+                        <field name="amount_credit" widget="float_time"/>
+                        <field name="amount_balance" widget="float_time"/>
+                        <field name="xau_debit" widget="float_time"/>
+                        <field name="xau_credit" widget="float_time"/>
+                        <field name="xau_balance" widget="float_time"/>
                     </tree>
                 </field>
             </form>

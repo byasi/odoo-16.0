@@ -96,4 +96,7 @@ class GeneralReportWizard(models.TransientModel):
             'view_mode': 'form',
             'res_id': self.id,
             'target': 'new',
-        } 
+        }
+
+    def action_print_pdf(self):
+        return self.env.ref('sales_move.action_general_report_pdf').report_action(self) 
