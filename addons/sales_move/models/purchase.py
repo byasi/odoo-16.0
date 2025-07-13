@@ -239,13 +239,11 @@ class PurchaseOrder(models.Model):
     def _amount_all(self):
         for order in self:
             order_lines = order.order_line.filtered(lambda x: not x.display_type)
-            
             # Check if current market price is set and not zero
             if order.current_market_price and not float_is_zero(order.current_market_price, precision_digits=2):
                 # Use current amounts based on current market price
                 amount_untaxed = sum(order_lines.mapped('current_amount'))
                 amount_tax = sum(order_lines.mapped('price_tax'))  # Tax calculation remains the same
-                
                 # Convert amounts to transaction currency
                 order.amount_untaxed = self.custom_round_down(
                     order.currency_id._convert(
@@ -698,16 +696,27 @@ class PurchaseOrderLine(models.Model):
         """Prepare the values for the creation of account.move.line."""
         res = super(PurchaseOrderLine, self)._prepare_account_move_line(move=move)
         effective_process_wt = self.manual_first_process if self.manual_first_process else self.first_process_wt
-        if effective_process_wt == 0:
-            quantity = self.first_process_wt or 1.0
-            unrounded_transfer_rate = self.price_unit
-            subTotal = self.product_qty * unrounded_transfer_rate
+        order = self.order_id
+        if order.current_market_price and not self.env['ir.config_parameter'].sudo().get_param('purchase_move.disable_current_market_override', False) and not float_is_zero(order.current_market_price, precision_digits=2):
+            # Use current market price values for the invoice line
+            if effective_process_wt == 0:
+                quantity = self.first_process_wt or 1.0
+                unrounded_transfer_rate = self.current_price_unit
+                subTotal = self.product_qty * unrounded_transfer_rate
+            else:
+                quantity = effective_process_wt or 1.0
+                unrounded_transfer_rate = self.current_subTotal / effective_process_wt if effective_process_wt else 0.0
+                subTotal = effective_process_wt * unrounded_transfer_rate
         else:
-            quantity = effective_process_wt or 1.0
-            unrounded_transfer_rate = self.price_subtotal / effective_process_wt
-            subTotal = effective_process_wt * unrounded_transfer_rate
+            if effective_process_wt == 0:
+                quantity = self.first_process_wt or 1.0
+                unrounded_transfer_rate = self.price_unit
+                subTotal = self.product_qty * unrounded_transfer_rate
+            else:
+                quantity = effective_process_wt or 1.0
+                unrounded_transfer_rate = self.price_subtotal / effective_process_wt
+                subTotal = effective_process_wt * unrounded_transfer_rate
 
-        # Update price_unit to match transfer_rate
         res.update({
             'price_unit': unrounded_transfer_rate,
             'subtotal': subTotal,
