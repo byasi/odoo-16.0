@@ -308,8 +308,50 @@ class PurchaseOrder(models.Model):
             if order.state == 'purchase':
                 order.state = 'unfixed'
 
+    @api.depends('selected_payment_ids')
+    def _compute_payment_amount(self):
+        for record in self:
+            total_amount = 0.0
+            for payment in record.selected_payment_ids:
+                if payment.currency_id != record.currency_id:
+                    # Convert payment amount to the base currency (or the currency of the record)
+                    total_amount += payment.currency_id._convert(
+                        payment.amount,
+                        record.currency_id,
+                        record.company_id,
+                        payment.date or fields.Date.context_today(record)
+                    )
+                else:
+                    total_amount += payment.amount
+            record.payment_amount = total_amount
+
+    @api.depends('amount_total', 'payment_amount')
+    def _compute_unfixed_balance(self):
+        for order in self:
+            order.unfixed_balance = abs(order.amount_total - order.payment_amount)
+
 # Unfixed  logic
     fix_price = fields.Float(string="Fix Price")
+    
+    # Payment-related fields
+    selected_payment_ids = fields.Many2many(
+        'account.payment',
+        string="Vendor Payment",
+        domain="[('partner_id', '=', partner_id)]",
+        help="Select a payment associated with the vendor."
+    )
+    payment_amount = fields.Monetary(
+        string="Paid Unfixed Amount",
+        compute="_compute_payment_amount",
+        currency_field='currency_id',
+        store=True
+    )
+    unfixed_balance = fields.Monetary(
+        string="Unfixed Balance",
+        compute="_compute_unfixed_balance",
+        currency_field='currency_id',
+        store=True
+    )
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 

@@ -75,6 +75,9 @@
                     <!-- <field name="unit_convention" string="Unit Convention"/> -->
                     <field name="transaction_price_per_unit" string="Transaction Price per Unit"/>
                     <field name="x_factor" string="Xfactor"/>
+                     <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
+                    <field name="payment_amount" string="Paid Unfixed Amount"/>
+                    <field name="unfixed_balance" string="Balance"/>
                     <!-- <field name="lot_no" string="Lot No" /> -->
                     <!-- <field name="selected_product_id" string="Select Product"/> -->
                 </xpath>

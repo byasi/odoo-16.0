@@ -56,6 +56,12 @@ class AccountPayment(models.Model):
         domain="[('partner_id', '=', partner_id)]",  # Filter sales orders by customer
         help="Sales orders attached to the selected customer."
     )
+    purchase_order_id = fields.Many2one(
+        'purchase.order',
+        string="Select Purchase Order",
+        domain="[('partner_id', '=', partner_id)]",  # Filter purchase orders by vendor
+        help="Purchase orders attached to the selected vendor."
+    )
     amount = fields.Monetary(currency_field='currency_id')
     currency_id = fields.Many2one(
         comodel_name='res.currency',
@@ -88,6 +94,42 @@ class AccountPayment(models.Model):
                 self.amount = self.sales_order_id.unfixed_balance
         else:
             self.amount = 0.0
+
+    @api.onchange('purchase_order_id')
+    def _onchange_purchase_order_id(self):
+        """
+        When a purchase order is selected, update the amount in the payment.
+        """
+        if self.purchase_order_id:
+            # Get the related invoice for this purchase order
+            invoice = self.env['account.move'].search([
+                ('invoice_origin', '=', self.purchase_order_id.name),
+                ('move_type', '=', 'in_invoice'),
+                ('state', '!=', 'cancel')
+            ], limit=1)
+            if invoice:
+                # Sum up the unfixed balance from all invoice lines
+                total_unfixed_balance = sum(invoice.invoice_line_ids.mapped('unfixed_balance'))
+                self.amount = total_unfixed_balance
+            else:
+                self.amount = self.purchase_order_id.unfixed_balance
+        else:
+            self.amount = 0.0
+
+    @api.onchange('partner_type')
+    def _onchange_partner_type(self):
+        """
+        When partner type changes, clear the order fields and amount.
+        """
+        if self.partner_type == 'customer':
+            # Clear purchase order when switching to customer
+            self.purchase_order_id = False
+        elif self.partner_type == 'supplier':
+            # Clear sales order when switching to supplier
+            self.sales_order_id = False
+        
+        # Clear amount when switching partner types
+        self.amount = 0.0
 
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
