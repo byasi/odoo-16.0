@@ -62,6 +62,7 @@
                     <field name="current_net_price" string="Current Net Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="material_unit" string="Market Price Unit"/>
                     <field name="material_unit_input" string="Material Unit Input"/>
+                    <field name="profit_loss" string="Profit/Loss"/>
                     <!-- <field name="gross_weight" string="Gross Weight"/> -->
                     <!-- <field name="first_process_wt" string="First Process Weight" /> -->
                     <!-- <field name="second_process_wt" string="Second Process Weight"/> -->
@@ -112,10 +113,11 @@
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
                 <xpath expr="//field[@name='rate']" position="after">
-                    <field name="current_rate" string="Current Rate" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                    <field name="current_rate" string="Current Rate" attrs="{'invisible': [('state', '!=', 'unfixed')]}" optional="hide"/>
                 </xpath>
                 <xpath expr="//field[@name='price_unit']" position="after">
-                    <field name="current_price_unit" string="Current Price Unit" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                    <field name="current_price_unit" string="Current Price Unit" attrs="{'invisible': [('state', '!=', 'unfixed')]}" optional="hide"/>
+                    <field name="current_amount" string="Current Amount" optional="hide" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                 </xpath>
                 <xpath expr="//field[@name='price_subtotal']" position="after">
                     <field name="current_subTotal" string="Current Subtotal" optional="hide" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
@@ -149,15 +151,6 @@
                                     <field name="total_without_weights" string="Total TA"/>
                                 </td>
                             </tr>
-                            <tr>
-                                <td class="o_td_label" style="padding-right: 20px;">
-                                    <span class="o_form_label o_tax_total_label">Fix Price</span>
-                                </td>
-                                <td class="o_list_monetary">
-                                    <field name="fix_price" string="Fix Price" />
-                                </td>
-                            </tr>
-
                             <tr>
                                 <td class="o_td_label" style="padding-right: 100px;">
                                     <span class="o_form_label o_tax_total_label">Net Payable</span>

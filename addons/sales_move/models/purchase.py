@@ -235,33 +235,63 @@ class PurchaseOrder(models.Model):
     amount_tax = fields.Monetary(string='Taxes', store=True, readonly=True, compute='_amount_all')
     amount_total = fields.Monetary(string='Total', store=True, readonly=True, compute='_amount_all')
 
-    @api.depends('order_line.price_total', 'deductions', 'transaction_currency')
+    @api.depends('order_line.price_total', 'order_line.current_amount', 'deductions', 'transaction_currency', 'current_market_price')
     def _amount_all(self):
         for order in self:
             order_lines = order.order_line.filtered(lambda x: not x.display_type)
-            amount_untaxed = sum(order_lines.mapped('price_subtotal'))
-            amount_tax = sum(order_lines.mapped('price_tax'))
-
-            # Convert amounts to transaction currency
-            order.amount_untaxed = self.custom_round_down(
-                order.currency_id._convert(
-                    amount_untaxed,
-                    order.transaction_currency,
-                    order.company_id,
-                    order.date_order or fields.Date.today()
+            
+            # Check if current market price is set and not zero
+            if order.current_market_price and not float_is_zero(order.current_market_price, precision_digits=2):
+                # Use current amounts based on current market price
+                amount_untaxed = sum(order_lines.mapped('current_amount'))
+                amount_tax = sum(order_lines.mapped('price_tax'))  # Tax calculation remains the same
+                
+                # Convert amounts to transaction currency
+                order.amount_untaxed = self.custom_round_down(
+                    order.currency_id._convert(
+                        amount_untaxed,
+                        order.transaction_currency,
+                        order.company_id,
+                        order.date_order or fields.Date.today()
+                    )
                 )
-            )
-            order.amount_tax = self.custom_round_down(
-                order.currency_id._convert(
-                    amount_tax,
-                    order.transaction_currency,
-                    order.company_id,
-                    order.date_order or fields.Date.today()
+                order.amount_tax = self.custom_round_down(
+                    order.currency_id._convert(
+                        amount_tax,
+                        order.transaction_currency,
+                        order.company_id,
+                        order.date_order or fields.Date.today()
+                    )
                 )
-            )
+                
+                # Calculate total using current amounts
+                total = (order.amount_untaxed + order.amount_tax) + order.deductions
+                order.amount_total = self.custom_round_down(total)
+            else:
+                # Use original amounts based on original market price
+                amount_untaxed = sum(order_lines.mapped('price_subtotal'))
+                amount_tax = sum(order_lines.mapped('price_tax'))
 
-            total = (order.amount_untaxed + order.amount_tax) + order.deductions
-            order.amount_total = self.custom_round_down(total)
+                # Convert amounts to transaction currency
+                order.amount_untaxed = self.custom_round_down(
+                    order.currency_id._convert(
+                        amount_untaxed,
+                        order.transaction_currency,
+                        order.company_id,
+                        order.date_order or fields.Date.today()
+                    )
+                )
+                order.amount_tax = self.custom_round_down(
+                    order.currency_id._convert(
+                        amount_tax,
+                        order.transaction_currency,
+                        order.company_id,
+                        order.date_order or fields.Date.today()
+                    )
+                )
+
+                total = (order.amount_untaxed + order.amount_tax) + order.deductions
+                order.amount_total = self.custom_round_down(total)
 
     # deductions tab here
     deduction_ids = fields.One2many('purchase.order.deductions', 'order_id', string="Deductions")
@@ -331,8 +361,124 @@ class PurchaseOrder(models.Model):
             order.unfixed_balance = abs(order.amount_total - order.payment_amount)
 
 # Unfixed  logic
-    fix_price = fields.Float(string="Fix Price")
-    
+    current_net_payable = fields.Monetary(
+        string="Current Net Payable",
+        currency_field='transaction_currency',
+        compute="_compute_current_net_payable",
+        store=True
+    )
+
+    @api.depends('current_net_total', 'payment_amount')
+    def _compute_current_net_payable(self):
+        for order in self:
+            if order.current_net_total is not None and order.payment_amount is not None:
+                order.current_net_payable = order.current_net_total - order.payment_amount
+            else:
+                order.current_net_payable = 0.0
+
+    # Add the missing current_net_total field
+    current_net_total = fields.Monetary(
+        string="Current Net Total",
+        currency_field='transaction_currency',
+        compute="_compute_current_net_total",
+        store=True
+    )
+
+    @api.depends('order_line.current_amount', 'deductions', 'transaction_currency')
+    def _compute_current_net_total(self):
+        for order in self:
+            total = sum(line.current_amount for line in order.order_line)
+            # Calculate the current net total after deducting the converted deduction value
+            current_net_total = total + order.deductions
+            order.current_net_total = self.custom_round_down(current_net_total)
+
+    # Add field to calculate payment adjustment needed
+    payment_adjustment_needed = fields.Monetary(
+        string="Payment Adjustment Needed",
+        currency_field='transaction_currency',
+        compute="_compute_payment_adjustment_needed",
+        store=True,
+        help="The amount you need to add or reduce from your existing balance to complete payment at the new market price"
+    )
+
+    @api.depends('current_net_total', 'net_total', 'payment_amount')
+    def _compute_payment_adjustment_needed(self):
+        for order in self:
+            if order.current_net_total is not None and order.net_total is not None:
+                # Calculate the difference between what you should pay at new market price vs old market price
+                # Example scenario:
+                # - Original market price: 3273, amount to pay: 427.04, paid: 300, balance: 127.04
+                # - New market price: 3300, new amount to pay: 430.1
+                # - Payment adjustment needed: 430.1 - 427.04 = 3.06 (you need to pay 3.06 more)
+                market_price_difference = order.current_net_total - order.net_total
+                
+                # The payment adjustment needed is the market price difference
+                # If positive: you need to pay more (market price increased)
+                # If negative: you need to pay less (market price decreased)
+                order.payment_adjustment_needed = self.custom_round_down(market_price_difference)
+            else:
+                order.payment_adjustment_needed = 0.0
+
+    def validate_payment_scenario(self):
+        """
+        Validates the payment scenario and returns a summary.
+        This method helps verify that the payment adjustment calculation is correct.
+        """
+        self.ensure_one()
+        
+        if not self.current_market_price or not self.market_price:
+            return {
+                'valid': False,
+                'message': 'No market price change detected. Please set current market price.',
+                'details': {}
+            }
+        
+        # Calculate expected values based on your scenario
+        original_amount = self.net_total
+        current_amount = self.current_net_total
+        amount_paid = self.payment_amount
+        payment_adjustment = self.payment_adjustment_needed
+        final_balance = self.final_balance_after_adjustment
+        
+        # Validation logic
+        expected_final_balance = current_amount - amount_paid
+        expected_adjustment = current_amount - original_amount
+        
+        validation_passed = (
+            abs(payment_adjustment - expected_adjustment) < 0.01 and
+            abs(final_balance - expected_final_balance) < 0.01
+        )
+        
+        return {
+            'valid': validation_passed,
+            'message': 'Payment scenario validation passed.' if validation_passed else 'Payment scenario validation failed.',
+            'details': {
+                'original_amount': original_amount,
+                'current_amount': current_amount,
+                'amount_paid': amount_paid,
+                'payment_adjustment': payment_adjustment,
+                'final_balance': final_balance,
+                'expected_adjustment': expected_adjustment,
+                'expected_final_balance': expected_final_balance,
+            }
+        }
+
+    # Add field to show final balance after adjustment
+    final_balance_after_adjustment = fields.Monetary(
+        string="Final Balance After Adjustment",
+        currency_field='transaction_currency',
+        compute="_compute_final_balance_after_adjustment",
+        store=True,
+        help="The final amount you need to pay after considering the market price change"
+    )
+
+    @api.depends('current_net_payable', 'payment_adjustment_needed')
+    def _compute_final_balance_after_adjustment(self):
+        for order in self:
+            # Final balance is the current net payable (which already considers payments made)
+            # The payment_adjustment_needed is already factored into current_net_total
+            order.final_balance_after_adjustment = order.current_net_payable
+
     # Payment-related fields
     selected_payment_ids = fields.Many2many(
         'account.payment',
@@ -418,6 +564,44 @@ class PurchaseOrder(models.Model):
                 order.current_profit_loss = order.current_total_subTotal - order.amount_untaxed
             else:
                 order.current_profit_loss = 0.0
+
+    profit_loss = fields.Monetary(
+        string="Profit/Loss",
+        currency_field='transaction_currency',
+        compute="_compute_profit_loss",
+        store=True
+    )
+
+    @api.depends('current_net_total', 'net_total')
+    def _compute_profit_loss(self):
+        for order in self:
+            if order.current_net_total is not None and order.net_total is not None:
+                order.profit_loss = order.current_net_total - order.net_total
+            else:
+                order.profit_loss = 0.0
+
+    def recalculate_amounts_for_current_market(self):
+        """
+        Manually trigger recalculation of amounts based on current market price.
+        This method can be called to ensure all calculations are up to date.
+        """
+        for order in self:
+            # Force recomputation of all dependent fields
+            order._compute_current_net_price()
+            order._compute_current_transaction_price_per_unit()
+            order._amount_all()
+            order._compute_unfixed_balance()
+            
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Recalculation Complete',
+                'message': f'Amounts have been recalculated based on current market price for {len(self)} order(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
@@ -814,6 +998,25 @@ class PurchaseOrderLine(models.Model):
     current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
     current_price_unit = fields.Float(string="Current Price Unit", compute="_compute_current_price_unit", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True, currency_field='price_currency')
+    current_amount = fields.Monetary(string="Current Amount", compute="_compute_current_amount", store=True, currency_field='price_currency')
+
+    @api.depends('qty_g', 'product_quality', 'manual_product_quality', 'order_id.current_transaction_price_per_unit',
+                 'order_id.x_factor')
+    def _compute_current_amount(self):
+        for line in self:
+            # Use manual_product_quality if provided; otherwise, fallback to product_quality
+            effective_product_quality = line.manual_product_quality if line.manual_product_quality else line.product_quality
+
+            if line.qty_g and effective_product_quality and line.order_id.current_transaction_price_per_unit and line.order_id.x_factor:
+                try:
+                    # Calculate current amount and round down the result
+                    current_amount = (
+                        line.qty_g * effective_product_quality * line.order_id.current_transaction_price_per_unit) / line.order_id.x_factor
+                    line.current_amount = self.custom_round_down(current_amount)
+                except ZeroDivisionError:
+                    line.current_amount = 0.0
+            else:
+                line.current_amount = 0.0
 
     @api.depends('order_id.current_transaction_price_per_unit', 'order_id.x_factor', 'product_quality', 'manual_product_quality')
     def _compute_current_rate(self):
