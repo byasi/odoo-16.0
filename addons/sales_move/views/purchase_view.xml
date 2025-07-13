@@ -56,8 +56,10 @@
                     <field name="purchase_method" string="Purchase Method"/>
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price" required="1"/>
+                    <field name="current_market_price" string="Current Market Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
+                    <field name="current_net_price" string="Current Net Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="material_unit" string="Market Price Unit"/>
                     <field name="material_unit_input" string="Material Unit Input"/>
                     <!-- <field name="gross_weight" string="Gross Weight"/> -->
@@ -74,6 +76,7 @@
                     <field name="convention_market_unit" string="Conversion Market Unit"/>
                     <!-- <field name="unit_convention" string="Unit Convention"/> -->
                     <field name="transaction_price_per_unit" string="Transaction Price per Unit"/>
+                    <field name="current_transaction_price_per_unit" string="Current Transaction Price per Unit" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="x_factor" string="Xfactor"/>
                      <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
                     <field name="payment_amount" string="Paid Unfixed Amount"/>
@@ -108,6 +111,16 @@
                     <field name="transfer_rate" string="Transfer Rate" optional="hide"/>
                     <field name="original_amount" string="Original Amount" optional="hide"/>
                 </xpath>
+                <xpath expr="//field[@name='rate']" position="after">
+                    <field name="current_rate" string="Current Rate" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                </xpath>
+                <xpath expr="//field[@name='price_unit']" position="after">
+                    <field name="current_price_unit" string="Current Price Unit" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                </xpath>
+                <xpath expr="//field[@name='price_subtotal']" position="after">
+                    <field name="current_subTotal" string="Current Subtotal" optional="hide" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                </xpath>
+                <!-- Remove any <xpath> targeting //table[@class='oe_right']/tbody and any reference to current_profit_loss -->
 
                 <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
                     <table class="oe_right">

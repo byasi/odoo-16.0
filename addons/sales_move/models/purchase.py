@@ -352,6 +352,73 @@ class PurchaseOrder(models.Model):
         currency_field='currency_id',
         store=True
     )
+    current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', help="Market price set via the wizard.")
+    current_net_price = fields.Monetary(
+        string="Current Net Market Price",
+        compute="_compute_current_net_price",
+        currency_field='market_price_currency',
+        store=True
+    )
+
+    @api.depends('current_market_price', 'discount')
+    def _compute_current_net_price(self):
+        for order in self:
+            if order.current_market_price and order.discount:
+                net_price = order.current_market_price + order.discount
+                order.current_net_price = self.custom_round_down(net_price)
+            else:
+                order.current_net_price = self.custom_round_down(order.current_market_price) if order.current_market_price else 0.
+
+    current_transaction_price_per_unit = fields.Monetary(
+        string="Current Transaction Price per Unit",
+        currency_field='transaction_currency',
+        compute="_compute_current_transaction_price_per_unit",
+        store=True
+    )
+
+    @api.depends('convention_market_unit', 'current_net_price', 'transaction_currency', 'market_price_currency', 'purchase_method')
+    def _compute_current_transaction_price_per_unit(self):
+        for order in self:
+            if order.convention_market_unit and order.current_net_price and order.transaction_currency:
+                converted_market_price = order.market_price_currency._convert(
+                    order.current_net_price,
+                    order.transaction_currency,
+                    order.company_id,
+                    order.date_order or fields.Date.today()
+                )
+                divisor = 31.1034786 if order.purchase_method == 'purchase_2' else 3
+                transaction_price_per_unit = converted_market_price / divisor
+                order.current_transaction_price_per_unit = self.custom_round_down(transaction_price_per_unit)
+            else:
+                order.current_transaction_price_per_unit = 0.0
+
+    current_total_subTotal = fields.Monetary(
+        string="Current Total Subtotal",
+        currency_field='currency_id',
+        compute="_compute_current_total_subTotal",
+        store=True
+    )
+
+    @api.depends('order_line.current_subTotal')
+    def _compute_current_total_subTotal(self):
+        for order in self:
+            order.current_total_subTotal = sum(order.order_line.mapped('current_subTotal'))
+
+    current_profit_loss = fields.Monetary(
+        string="Current Profit/Loss",
+        currency_field='market_price_currency',
+        compute="_compute_current_profit_loss",
+        store=True
+    )
+
+    @api.depends('current_total_subTotal', 'amount_untaxed')
+    def _compute_current_profit_loss(self):
+        for order in self:
+            if order.current_total_subTotal and order.amount_untaxed:
+                order.current_profit_loss = order.current_total_subTotal - order.amount_untaxed
+            else:
+                order.current_profit_loss = 0.0
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
@@ -743,6 +810,34 @@ class PurchaseOrderLine(models.Model):
                                           line.price_unit,
                                           line.price_subtotal
                                       ))
+
+    current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+    current_price_unit = fields.Float(string="Current Price Unit", compute="_compute_current_price_unit", store=True)
+    current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True, currency_field='price_currency')
+
+    @api.depends('order_id.current_transaction_price_per_unit', 'order_id.x_factor', 'product_quality', 'manual_product_quality')
+    def _compute_current_rate(self):
+        for line in self:
+            effective_product_quality = line.manual_product_quality if line.manual_product_quality else line.product_quality
+            if line.order_id.current_transaction_price_per_unit and line.order_id.x_factor and effective_product_quality:
+                try:
+                    rate = (
+                        line.order_id.current_transaction_price_per_unit / line.order_id.x_factor) * effective_product_quality
+                    line.current_rate = self.custom_round_down(rate)
+                except ZeroDivisionError:
+                    line.current_rate = 0.0
+            else:
+                line.current_rate = 0.0
+
+    @api.depends('current_rate')
+    def _compute_current_price_unit(self):
+        for line in self:
+            line.current_price_unit = line.current_rate
+
+    @api.depends('current_price_unit', 'product_qty')
+    def _compute_current_subTotal(self):
+        for line in self:
+            line.current_subTotal = line.current_price_unit * line.product_qty
 
 
 class PurchaseOrderDeductions(models.Model):
