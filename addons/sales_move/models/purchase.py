@@ -329,6 +329,8 @@ class PurchaseOrder(models.Model):
         for order in self:
             if order.state == 'unfixed':
                 order.state = 'purchase'
+                # Trigger purchase cost recalculation when converting
+                order.recalculate_purchase_cost_chain()
 
     def action_back_to_unfixed(self):
         """Convert 'Purchase Order' back to 'unfixed'."""
@@ -497,6 +499,7 @@ class PurchaseOrder(models.Model):
         store=True
     )
     current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', help="Market price set via the wizard.")
+    needs_cost_recalculation = fields.Boolean(string="Needs Cost Recalculation", default=False, help="Indicates if purchase cost chain needs to be recalculated due to market price changes")
     current_net_price = fields.Monetary(
         string="Current Net Market Price",
         compute="_compute_current_net_price",
@@ -512,6 +515,13 @@ class PurchaseOrder(models.Model):
                 order.current_net_price = self.custom_round_down(net_price)
             else:
                 order.current_net_price = self.custom_round_down(order.current_market_price) if order.current_market_price else 0.
+
+    @api.onchange('current_market_price')
+    def _onchange_current_market_price(self):
+        """Trigger when current market price changes to mark for recalculation"""
+        for order in self:
+            if order.current_market_price and order.state in ['purchase', 'done']:
+                order.needs_cost_recalculation = True
 
     current_transaction_price_per_unit = fields.Monetary(
         string="Current Transaction Price per Unit",
@@ -600,6 +610,234 @@ class PurchaseOrder(models.Model):
                 'sticky': False,
             }
         }
+
+    def recalculate_purchase_cost_chain(self):
+        """
+        Recalculate purchase cost throughout the entire chain when market price changes.
+        This updates purchase_cost in stock moves, MRP productions, and product_cost in sales orders.
+        """
+        for order in self:
+            # Step 1: Update purchase_cost in stock moves for this purchase order
+            stock_moves = self.env['stock.move'].search([
+                ('purchase_line_id.order_id', '=', order.id),
+                ('state', 'in', ['done', 'assigned', 'partially_available'])
+            ])
+            
+            for move in stock_moves:
+                # Get the current_subtotal from the purchase line
+                purchase_line = move.purchase_line_id
+                if purchase_line and purchase_line.current_subTotal:
+                    move.purchase_cost = purchase_line.current_subTotal
+                    # Trigger recomputation of total_purchase_cost
+                    move._compute_total_purchase_cost()
+            
+            # Step 2: Update stock move lines
+            stock_move_lines = self.env['stock.move.line'].search([
+                ('move_id', 'in', stock_moves.ids)
+            ])
+            for line in stock_move_lines:
+                line._compute_lot_purchase_cost()
+                line._fetch_lot_values()
+            
+            # Step 3: Update MRP productions that use these stock moves
+            mrp_productions = self.env['mrp.production'].search([
+                ('move_raw_ids', 'in', stock_moves.ids)
+            ])
+            for production in mrp_productions:
+                production._compute_mrp_purchase_cost()
+            
+            # Step 4: Update stock move lines in MRP productions
+            mrp_move_lines = self.env['stock.move.line'].search([
+                ('move_id.production_id', 'in', mrp_productions.ids)
+            ])
+            for line in mrp_move_lines:
+                line._fetch_lot_values()
+                line._compute_product_quantity()
+            
+            # Step 5: Force recomputation of all stock move lines that might be affected
+            all_affected_move_lines = self.env['stock.move.line'].search([
+                ('lot_id', '!=', False)
+            ])
+            all_affected_move_lines.force_recompute_lot_values()
+            all_affected_move_lines.update_mo_purchase_cost_from_lots()
+            
+            # Step 6: Update sales order lines that reference these stock moves
+            sale_order_lines = self.env['sale.order.line'].search([
+                ('move_ids', 'in', stock_moves.ids)
+            ])
+            for line in sale_order_lines:
+                line._compute_product_cost()
+            
+            # Step 7: Update sales orders
+            sale_orders = sale_order_lines.mapped('order_id')
+            for sale_order in sale_orders:
+                sale_order._compute_product_cost()
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Purchase Cost Chain Updated',
+                'message': f'Purchase cost has been recalculated throughout the chain for {len(self)} order(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def recalculate_purchase_cost_chain_sql(self):
+        """
+        Alternative SQL-based method to update purchase cost throughout the chain.
+        This method uses direct SQL updates for better performance on large datasets.
+        """
+        for order in self:
+            # Step 1: Update stock.move.purchase_cost
+            self.env.cr.execute("""
+                UPDATE stock_move sm
+                SET purchase_cost = pol.current_subtotal
+                FROM purchase_order_line pol
+                WHERE sm.purchase_line_id = pol.id
+                AND pol.order_id = %s
+                AND pol.current_subtotal IS NOT NULL
+                AND pol.current_subtotal > 0
+            """, (order.id,))
+            
+            # Step 2: Update stock_move_line.lot_purchase_cost
+            self.env.cr.execute("""
+                UPDATE stock_move_line sml
+                SET lot_purchase_cost = sm.purchase_cost
+                FROM stock_move sm
+                WHERE sml.move_id = sm.id
+                AND sm.purchase_line_id IN (
+                    SELECT id FROM purchase_order_line WHERE order_id = %s
+                )
+            """, (order.id,))
+            
+            # Step 3: Update stock_move_line.mo_purchase_cost based on lot names
+            self.env.cr.execute("""
+                UPDATE stock_move_line sml
+                SET mo_purchase_cost = (
+                    SELECT lot_purchase_cost 
+                    FROM stock_move_line sml2 
+                    WHERE sml2.lot_id = sml.lot_id 
+                    AND sml2.lot_purchase_cost IS NOT NULL 
+                    LIMIT 1
+                )
+                WHERE sml.lot_id IS NOT NULL
+                AND sml.move_id IN (
+                    SELECT sm.id FROM stock_move sm
+                    JOIN purchase_order_line pol ON sm.purchase_line_id = pol.id
+                    WHERE pol.order_id = %s
+                )
+            """, (order.id,))
+            
+            # Step 4: Update mrp.production.purchase_cost
+            self.env.cr.execute("""
+                UPDATE mrp_production mp
+                SET purchase_cost = (
+                    SELECT sm.total_purchase_cost
+                    FROM stock_move sm
+                    WHERE sm.production_id = mp.id
+                    AND sm.total_purchase_cost IS NOT NULL
+                    ORDER BY sm.date DESC
+                    LIMIT 1
+                )
+                WHERE mp.id IN (
+                    SELECT DISTINCT sm.production_id
+                    FROM stock_move sm
+                    JOIN purchase_order_line pol ON sm.purchase_line_id = pol.id
+                    WHERE pol.order_id = %s
+                    AND sm.production_id IS NOT NULL
+                )
+            """, (order.id,))
+            
+            # Step 5: Update stock_move_line.product_cost
+            self.env.cr.execute("""
+                UPDATE stock_move_line sml
+                SET product_cost = mp.purchase_cost
+                FROM mrp_production mp
+                WHERE sml.move_id IN (
+                    SELECT id FROM stock_move WHERE production_id = mp.id
+                )
+                AND mp.purchase_cost IS NOT NULL
+                AND mp.id IN (
+                    SELECT DISTINCT sm.production_id
+                    FROM stock_move sm
+                    JOIN purchase_order_line pol ON sm.purchase_line_id = pol.id
+                    WHERE pol.order_id = %s
+                    AND sm.production_id IS NOT NULL
+                )
+            """, (order.id,))
+            
+            # Step 6: Update sale.order.line.product_cost
+            self.env.cr.execute("""
+                UPDATE sale_order_line sol
+                SET product_cost = (
+                    SELECT SUM(sml.product_cost)
+                    FROM stock_move_line sml
+                    JOIN stock_move sm ON sml.move_id = sm.id
+                    WHERE sm.sale_line_id = sol.id
+                    AND sml.product_cost IS NOT NULL
+                )
+                WHERE sol.id IN (
+                    SELECT DISTINCT sm.sale_line_id
+                    FROM stock_move sm
+                    JOIN purchase_order_line pol ON sm.purchase_line_id = pol.id
+                    WHERE pol.order_id = %s
+                    AND sm.sale_line_id IS NOT NULL
+                )
+            """, (order.id,))
+            
+            # Step 7: Update sale.order.product_cost
+            self.env.cr.execute("""
+                UPDATE sale_order so
+                SET product_cost = (
+                    SELECT AVG(sol.product_cost)
+                    FROM sale_order_line sol
+                    WHERE sol.order_id = so.id
+                    AND sol.product_cost IS NOT NULL
+                )
+                WHERE so.id IN (
+                    SELECT DISTINCT sol.order_id
+                    FROM sale_order_line sol
+                    JOIN stock_move sm ON sol.id = sm.sale_line_id
+                    JOIN purchase_order_line pol ON sm.purchase_line_id = pol.id
+                    WHERE pol.order_id = %s
+                )
+            """, (order.id,))
+            
+            # Commit the transaction
+            self.env.cr.commit()
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Purchase Cost Chain Updated (SQL)',
+                'message': f'Purchase cost has been recalculated using SQL for {len(self)} order(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def create(self, vals):
+        """Override create to handle automatic recalculation"""
+        result = super(PurchaseOrder, self).create(vals)
+        return result
+
+    def write(self, vals):
+        """Override write to handle automatic recalculation"""
+        result = super(PurchaseOrder, self).write(vals)
+        
+        # Check if current_market_price was updated and trigger recalculation
+        if 'current_market_price' in vals:
+            for order in self:
+                if order.state in ['purchase', 'done'] and order.needs_cost_recalculation:
+                    # Use a delayed job to avoid blocking the UI
+                    order.with_delay().recalculate_purchase_cost_chain()
+                    order.needs_cost_recalculation = False
+        
+        return result
 
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'

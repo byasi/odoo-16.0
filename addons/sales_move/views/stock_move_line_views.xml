@@ -11,4 +11,96 @@
         </field>
     </record>
 
+    <record id="view_stock_move_line_tree_inherited" model="ir.ui.view">
+        <field name="name">stock.move.line.tree.inherited</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_stock_move_line_operation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_stock_move_line_detailed_tree_inherited" model="ir.ui.view">
+        <field name="name">stock.move.line.detailed.tree.inherited</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_stock_move_line_detailed_operation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add fields to detailed tree view -->
+    <record id="view_stock_move_line_detailed_main_tree_inherited" model="ir.ui.view">
+        <field name="name">stock.move.line.detailed.main.tree.inherited</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_tree_detailed"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add button to main stock move line tree view -->
+    <record id="view_stock_move_line_main_tree_inherited" model="ir.ui.view">
+        <field name="name">stock.move.line.main.tree.inherited</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add button to stock move line form view -->
+    <record id="view_stock_move_line_form_inherited" model="ir.ui.view">
+        <field name="name">stock.move.line.form.inherited</field>
+        <field name="model">stock.move.line</field>
+        <field name="inherit_id" ref="stock.view_move_line_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_update_mo_purchase_cost_from_lots" 
+                        string="Update MO Purchase Cost" 
+                        type="object" 
+                        class="btn-info"
+                        help="Update manufacturing purchase cost from lot names"/>
+            </xpath>
+            <xpath expr="//group" position="inside">
+                <group string="Purchase Cost Information">
+                    <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1"/>
+                    <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1"/>
+                    <field name="lot_product_quality" string="Lot Product Quality" readonly="1"/>
+                    <field name="mo_product_quality" string="MO Product Quality" readonly="1"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add a separate action for the button -->
+    <record id="action_update_mo_purchase_cost" model="ir.actions.server">
+        <field name="name">Update MO Purchase Cost</field>
+        <field name="model_id" ref="stock.model_stock_move_line"/>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    records.action_update_mo_purchase_cost_from_lots()
+        </field>
+    </record>
+
+    <!-- Menu item for the action -->
+    <menuitem id="menu_update_mo_purchase_cost"
+              name="Update MO Purchase Cost"
+              parent="stock.menu_stock_warehouse_mgmt"
+              action="action_update_mo_purchase_cost"
+              sequence="100"/>
+
 </odoo>

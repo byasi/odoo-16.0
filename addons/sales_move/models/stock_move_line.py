@@ -117,11 +117,11 @@ class StockMoveLine(models.Model):
         for line in self:
             line.lot_purchase_cost = line.move_id.purchase_cost
 
-    @api.depends('lot_id')
+    @api.depends('lot_id', 'lot_purchase_cost')
     def _fetch_lot_values(self):
         for line in self:
             if line.lot_id and line.lot_id.name:
-                # Fetch the first record with the matching lot name
+                # First try to find a matching line with the same lot name
                 matching_line = self.search([('lot_id.name', '=', line.lot_id.name)], limit=1)
                 if matching_line:
                     # Set the values only if matching_line is found
@@ -138,8 +138,78 @@ class StockMoveLine(models.Model):
                 line.mo_first_process_wt = 0.0
                 line.mo_purchase_cost = 0.0
 
+    def force_recompute_lot_values(self):
+        """
+        Force recomputation of lot values for all stock move lines.
+        This method can be called to ensure all computed fields are up to date.
+        """
+        for line in self:
+            line._fetch_lot_values()
+            line._compute_product_quantity()
+            line._compute_weighted_average_quality()
 
+    def update_mo_purchase_cost_from_lots(self):
+        """
+        Update mo_purchase_cost for all stock move lines based on lot names.
+        This method specifically addresses the issue where manufacturing orders
+        don't get the updated purchase cost from the inventory context.
+        """
+        for line in self:
+            if line.lot_id and line.lot_id.name:
+                # Find the most recent stock move line with the same lot name that has a purchase cost
+                matching_line = self.search([
+                    ('lot_id.name', '=', line.lot_id.name),
+                    ('lot_purchase_cost', '>', 0)
+                ], order='create_date desc', limit=1)
+                
+                if matching_line:
+                    line.mo_purchase_cost = matching_line.lot_purchase_cost
+                    line.mo_product_quality = matching_line.lot_product_quality
+                    line.mo_first_process_wt = matching_line.lot_first_process_wt
+                else:
+                    # If no matching line found, try to get from the lot's quants
+                    quant = self.env['stock.quant'].search([
+                        ('lot_id.name', '=', line.lot_id.name),
+                        ('quantity', '>', 0)
+                    ], limit=1)
+                    
+                    if quant:
+                        # Get the purchase cost from the related stock move
+                        stock_move = self.env['stock.move'].search([
+                            ('product_id', '=', quant.product_id.id),
+                            ('location_dest_id', '=', quant.location_id.id),
+                            ('state', '=', 'done')
+                        ], order='date desc', limit=1)
+                        
+                        if stock_move:
+                            line.mo_purchase_cost = stock_move.purchase_cost or 0.0
+                            line.mo_product_quality = stock_move.product_quality or 0.0
+                            line.mo_first_process_wt = stock_move.first_process_wt or 0.0
+                        else:
+                            line.mo_purchase_cost = 0.0
+                            line.mo_product_quality = 0.0
+                            line.mo_first_process_wt = 0.0
+                    else:
+                        line.mo_purchase_cost = 0.0
+                        line.mo_product_quality = 0.0
+                        line.mo_first_process_wt = 0.0
 
+    def action_update_mo_purchase_cost_from_lots(self):
+        """
+        Action method for the button to update mo_purchase_cost from lots.
+        """
+        self.update_mo_purchase_cost_from_lots()
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'MO Purchase Cost Updated',
+                'message': f'Manufacturing purchase cost has been updated for {len(self)} stock move line(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
     def _compute_qty_done(self):
