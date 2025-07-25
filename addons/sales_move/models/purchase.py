@@ -842,6 +842,18 @@ class PurchaseOrder(models.Model):
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
+    @api.onchange('product_id')
+    def onchange_product_id(self):
+        """Override to prevent automatic product field population"""
+        # Do nothing - this prevents automatic field changes when product is selected
+        return
+
+    @api.onchange('product_id')
+    def onchange_product_id_warning(self):
+        """Override to prevent automatic warnings"""
+        # Do nothing - this prevents automatic warnings
+        return
+
     gross_weight = fields.Float(string="Gross Weight")
     first_process_wt = fields.Float(string="First Process Wt")
     price = fields.Monetary(string="Market Price")
