@@ -13,7 +13,7 @@
                 <table style="width: 100% !important; border: 0px">
                     <tbody style="border: 0px">
                         <tr style="border: 0px">
-                            <td class="text_right mt-4" style="width:70%;">
+                            <td class="text_right mt-4" style="width:60%;">
 
                                 <strong>
                                     <span t-field="o.partner_id.name"/>
@@ -41,31 +41,6 @@
                     </tbody>
                 </table>
 
-                <t t-if="o.state == 'unfixed'">
-                    <table class="table table-responsive" style="width: 100%; border-collapse: collapse;">
-                        <thead class="table-header">
-                            <tr style="font-size: 16px;">
-                                <th style="width: 25%; text-align: center;" class="text-center">SI #</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Qty Grams</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Qty Tolas</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Purity %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <t t-foreach="enumerate(o.order_line, 1)" t-as="line">
-                                <t t-if="not line[1].display_type and (line[1].product_quality &gt; 0 or line[1].manual_product_quality &gt; 0)">
-                                    <tr>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="line[0]"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].manual_first_process if line[1].manual_first_process &gt; 0 else line[1].first_process_wt)"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].product_qty)"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].manual_product_quality if line[1].manual_product_quality &gt; 0 else line[1].product_quality)"/></td>
-                                    </tr>
-                                </t>
-                            </t>
-                        </tbody>
-                    </table>
-                </t>
-                <t t-if="o.state != 'unfixed'">
                 <table class="table table-responsive" style="width: 100% !important">
 
                     <thead class="table-header">
@@ -82,7 +57,6 @@ Grams</span>
                                 <span>Qty <br/>
 Tolas</span>
                             </th>
-                                <t t-if="o.state != 'unfixed'">
                             <th name="th_x_factor" style="width: 19%; padding: 8px !important" class="text-center">
                                 <span>Tola <br/>
  Rate</span>
@@ -95,13 +69,6 @@ Tolas</span>
                                 <span>USD <br/>
  $</span>
                             </th>
-                                </t>
-                                <t t-if="o.state == 'unfixed'">
-                                    <th name="th_product_quality" style="width: 38%; padding: 8px !important" class="text-center">
-                                        <span>Purity <br/>
-%</span>
-                                    </th>
-                                </t>
 
                         </tr>
 
@@ -113,56 +80,39 @@ Tolas</span>
                         <t t-foreach="enumerate(o.order_line, 1)" t-as="line">
                             <tr style="border-bottom:2px solid #000;">
 
-                                <t t-if="not line[1].display_type">
-                                    <!-- Only display the line if either product_quality or manual_product_quality is greater than 0 -->
-                                    <t t-if="line[1].product_quality &gt; 0 or line[1].manual_product_quality &gt; 0">
-                                        <td id="product" style="width: 5%;  padding: 8px !important;  margin-left:10px;" class="text-center">
-                                            <span style="padding-left:2%" t-esc="line[0]"/>
+                                <t t-if="line[1].product_quality &gt; 0 or line[1].manual_product_quality &gt; 0">
+                                    <td id="product" style="width: 5%;  padding: 8px !important;  margin-left:10px;" class="text-center">
+                                        <span style="padding-left:2%" t-esc="line[0]"/>
+                                    </td>
+                                    <t t-if="line[1].manual_first_process &gt; 0">
+                                        <td id="product" style="width: 19%; padding: 8px !important;  padding-left:50px;">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_first_process)"/>
                                         </td>
-                                        <t t-if="line[1].manual_first_process &gt; 0">
-                                            <td id="product" style="width: 19%; padding: 8px !important;  padding-left:50px;">
-                                                <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_first_process)"/>
-                                            </td>
-                                        </t>
-                                        <t t-if="line[1].manual_first_process == 0">
-                                            <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].first_process_wt)"/>
-                                            </td>
-                                        </t>
-                                        <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                            <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].product_qty)"/>
-                                        </td>
-                                            <t t-if="o.state != 'unfixed'">
-                                        <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                            <span class="text-center" style="padding-left:40%" t-esc="'{:,.2f}'.format(o.transaction_price_per_unit)"/>
-                                        </td>
-                                        <t t-if="line[1].manual_product_quality &gt; 0">
-                                            <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_product_quality)"/>
-                                            </td>
-                                        </t>
-                                        <t t-if="line[1].manual_product_quality == 0">
-                                            <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                <span class="text-center" style="padding-left:40%" t-esc="'%.2f'%(line[1].product_quality)"/>
-                                            </td>
-                                        </t>
-                                        <td style="width: 19%; padding: 8px !important" class="text-center">
-                                            <span class="text-center" style="padding-left:30%" t-esc="'{:,.2f}'.format(line[1].price_subtotal)"/>
-                                        </td>
-                                            </t>
-                                            <t t-if="o.state == 'unfixed'">
-                                                <t t-if="line[1].manual_product_quality &gt; 0">
-                                                    <td id="product" style="width: 38%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_product_quality)"/>
-                                                    </td>
-                                                </t>
-                                                <t t-if="line[1].manual_product_quality == 0">
-                                                    <td id="product" style="width: 38%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:40%" t-esc="'%.2f'%(line[1].product_quality)"/>
-                                                    </td>
-                                                </t>
-                                            </t>
                                     </t>
+                                    <t t-if="line[1].manual_first_process == 0">
+                                        <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].first_process_wt)"/>
+                                        </td>
+                                    </t>
+                                    <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                        <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].product_qty)"/>
+                                    </td>
+                                    <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                        <span class="text-center" style="padding-left:40%" t-esc="'{:,.2f}'.format(o.transaction_price_per_unit)"/>
+                                    </td>
+                                    <t t-if="line[1].manual_product_quality &gt; 0">
+                                        <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_product_quality)"/>
+                                        </td>
+                                    </t>
+                                    <t t-if="line[1].manual_product_quality == 0">
+                                        <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                            <span class="text-center" style="padding-left:40%" t-esc="'%.2f'%(line[1].product_quality)"/>
+                                        </td>
+                                    </t>
+                                    <td style="width: 19%; padding: 8px !important" class="text-center">
+                                        <span class="text-center" style="padding-left:30%" t-esc="'{:,.2f}'.format(line[1].price_subtotal)"/>
+                                    </td>
                                 </t>
                                 <t t-else="">
                                     <td colspan="99" id="section">
@@ -181,9 +131,9 @@ Tolas</span>
                             <!-- Calculate the total subtotal in UGX -->
                             <t t-set="total_custom_currency" t-value="sum(line.currency_id._convert(line.price_subtotal, line.UGX_currency, o.company_id, o.date_order or fields.Date.today()) for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
                             <!-- Calculate the total subtotal in USD -->
-                            <t t-set="total_usd" t-value="sum(line.price_subtotal for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
+                            <t t-set="total_usd" t-value="o.amount_total"/>
                             <!-- Display the totals -->
-                            <t t-set="total_process_wt" t-value="sum(line.first_process_wt for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
+                            <t t-set="total_process_wt" t-value="sum(line.manual_first_process if line.manual_first_process &gt; 0 else line.first_process_wt for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
                             <t t-set="total_qty" t-value="sum(line.product_qty for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
                             <tr>
 
@@ -198,21 +148,10 @@ Tolas</span>
                                 </td>
 
                                 <td name="td_amount_untaxed" class="text_end" style="margin: 0px !important; line-height: 30px; width: 15% !important; border-bottom: 2px solid #000; ">
-                                        <t t-if="o.state != 'unfixed'">
                                     <span>
-                        USD $:
+                                       USD $: <span style="padding-left:20px;"><t t-esc="'{:,.2f}'.format(total_usd)"/></span>
                                     </span>
-                                    <span style="padding-left:40px;">
-                                        <t t-esc="'{:,.2f}'.format(total_usd)"/>
-                                    </span>
-                                    <br/>
-                                        </t>
-                                    <span>
-                        UGX 
-                                    </span>
-                                    <span style="padding-left:40px;">
-                                        <t t-esc="'{:,.0f}'.format(total_custom_currency)"/>
-                                    </span>
+                                    
                                 </td>
 
                             </tr>
@@ -223,21 +162,11 @@ Tolas</span>
                                 </td>
 
                                 <td name="td_amount_untaxed" class="text_end" style="margin: 0px !important; line-height: 30px; width: 15% !important; ">
-                                        <t t-if="o.state != 'unfixed'">
                                     <span>
-                       USD $: 
+                                        USD $: <span style="padding-left:20px;"><t t-esc="'{:,.2f}'.format(total_usd)"/></span>
                                     </span>
-                                    <span style="padding-left:40px;">
-                                        <t t-esc="'{:,.2f}'.format(total_usd)"/>
-                                    </span>
-                                    <br/>
-                                        </t>
-                                    <span>
-                        UGX 
-                                    </span>
-                                    <span style="padding-left:40px;">
-                                        <t t-esc="'{:,.0f}'.format(total_custom_currency)"/>
-                                    </span>
+                                    
+                                     
                                 </td>
 
                             </tr>
@@ -245,14 +174,10 @@ Tolas</span>
 
                     </table>
                 </div>
-                </t>
-
-
-
             </div>
 
             <!--Company Copy-->
-            <div id="company_copy" class="mt-5" style="margin-top: 100px; width: 90% !important;">
+            <div id="company_copy" class="mt-5" style="margin-top: 200px; width: 90% !important;">
                 <table style="width: 100% !important; border: 0px">
                     <tbody style="border: 0px">
                         <tr style="border: 0px">
@@ -321,195 +246,143 @@ Tolas</span>
                     </tbody>
                 </table>
 
-                <t t-if="o.state == 'unfixed'">
-                    <table class="table table-responsive" style="width: 100%; border-collapse: collapse;">
-                        <thead class="table-header">
-                            <tr style="font-size: 16px;">
-                                <th style="width: 25%; text-align: center;" class="text-center">SI #</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Qty Grams</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Qty Tolas</th>
-                                <th style="width: 25%; text-align: center;" class="text-center">Purity %</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <t t-foreach="enumerate(o.order_line, 1)" t-as="line">
-                                <t t-if="not line[1].display_type and (line[1].product_quality &gt; 0 or line[1].manual_product_quality &gt; 0)">
-                                    <tr>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="line[0]"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].manual_first_process if line[1].manual_first_process &gt; 0 else line[1].first_process_wt)"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].product_qty)"/></td>
-                                        <td style="text-align: center; padding-top: 12px;"><span t-esc="'%.2f' % (line[1].manual_product_quality if line[1].manual_product_quality &gt; 0 else line[1].product_quality)"/></td>
-                                    </tr>
-                                </t>
-                            </t>
-                        </tbody>
-                    </table>
-                </t>
-                <t t-if="o.state != 'unfixed'">
-                    <table class="table table-responsive" style="width: 100% !important">
+                <table class="mytable mytable-head" style="width: 100% !important">
+                    <thead>
 
-                        <thead class="table-header">
-                            <tr style="font-size: 16px; padding: 3px !important;">
-                                <th name="th_number" style="width: 5%; padding: 8px !important;" class="text-center">
+                        <tr style="font-size: 16px; padding: 3px !important">
+                            <th name="th_product" style="width: 10%;  padding: 8px !important;  margin-left:10px;">
                                 <span>SI<br/>
 #</span>
                             </th>
-                                <th name="th_gross_weight" style="width: 19%; padding: 8px !important" class="text-center">
+                            <th name="th_gross_weight" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
                                 <span>Qty <br/>
 Grams</span>
                             </th>
-                                <th name="th_product_qty" style="width: 19%; padding: 8px !important" class="text-center">
+                            <th name="th_product_qty" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
                                 <span>Qty <br/>
 Tolas</span>
                             </th>
-                                <t t-if="o.state != 'unfixed'">
-                                    <th name="th_x_factor" style="width: 19%; padding: 8px !important" class="text-center">
+                            <th name="th_x_factor" style="width: 12%; padding: 8px !important" class="text-center">
                                 <span>Tola <br/>
  Rate</span>
                             </th>
-                                    <th name="th_product_quality" style="width: 19%; padding: 8px !important" class="text-center">
+                            <th name="th_product_quality" style="width: 12%;  padding: 8px !important;  margin-left:10px;" class="text-center">
                                 <span>Purity <br/>
 %</span>
                             </th>
-                                    <th name="th_price_subtotal" style="width: 19%; padding: 8px !important" class="text-center">
-                                        <span>USD <br/>
- $</span>
+                            <th name="th_x_factor" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                <span>Unit Price</span>
                             </th>
-                                </t>
-                                <t t-if="o.state == 'unfixed'">
-                                    <th name="th_product_quality" style="width: 38%; padding: 8px !important" class="text-center">
-                                        <span>Purity <br/>
-%</span>
+                            <th name="th_x_factor" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                <span>Price Currency</span>
                             </th>
-                                </t>
-
+                            <th name="th_price_subtotal" style="width: 12%;  padding: 8px !important;  margin-left:10px;" class="text-center">
+                                <span>Subtotal</span>
+                            </th>
                         </tr>
 
                     </thead>
-
-
                     <tbody>
-
-                            <t t-foreach="enumerate(o.order_line, 1)" t-as="line">
-                                <tr style="border-bottom:2px solid #000;">
-
-                                    <t t-if="not line[1].display_type">
-                                        <!-- Only display the line if either product_quality or manual_product_quality is greater than 0 -->
-                                        <t t-if="line[1].product_quality &gt; 0 or line[1].manual_product_quality &gt; 0">
-                                            <td id="product" style="width: 5%;  padding: 8px !important;  margin-left:10px;" class="text-center">
-                                                <span style="padding-left:2%" t-esc="line[0]"/>
+                        <t t-foreach="o.order_line" t-as="order_line">
+                            <tr t-att-class="'bg-200 fw-bold o_line_section' if order_line.display_type == 'line_section' else 'fst-italic o_line_note' if order_line.display_type == 'line_note' else ''">
+                                <t t-if="not order_line.display_type">
+                                    <td id="product" style="width: 10%;  padding: 8px !important;  margin-left:10px;">
+                                        <span class="text-center" style="padding-left:35%" t-field="order_line.name"/>
                                     </td>
-                                            <t t-if="line[1].manual_first_process &gt; 0">
-                                                <td id="product" style="width: 19%; padding: 8px !important;  padding-left:50px;">
-                                                    <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_first_process)"/>
+
+                                    <t t-if="order_line.manual_first_process &gt; 0">
+                                        <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.manual_first_process)"/>
                                         </td>
                                     </t>
-                                            <t t-if="line[1].manual_first_process == 0">
-                                                <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                    <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].first_process_wt)"/>
+                                    <t t-if="order_line.manual_first_process == 0">
+                                        <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.first_process_wt)"/>
                                         </td>
                                     </t>
-                                            <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].product_qty)"/>
+                                    <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                        <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.product_qty)"/>
                                     </td>
-                                            <t t-if="o.state != 'unfixed'">
-                                                <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
+                                    <td id="product" style="width: 12%; padding: 8px !important" class="text-center">
+                                        <t t-if="order_line.product_quality &gt; 0 or order_line.manual_product_quality &gt; 0">
                                             <span class="text-center" style="padding-left:40%" t-esc="'{:,.2f}'.format(o.transaction_price_per_unit)"/>
-                                                </td>
-                                                <t t-if="line[1].manual_product_quality &gt; 0">
-                                                    <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_product_quality)"/>
-                                                    </td>
-                                                </t>
-                                                <t t-if="line[1].manual_product_quality == 0">
-                                                    <td id="product" style="width: 19%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:40%" t-esc="'%.2f'%(line[1].product_quality)"/>
-                                                    </td>
-                                                </t>
-                                                <td style="width: 19%; padding: 8px !important" class="text-center">
-                                                    <span class="text-center" style="padding-left:30%" t-esc="'{:,.2f}'.format(line[1].price_subtotal)"/>
-                                    </td>
-                                            </t>
-                                            <t t-if="o.state == 'unfixed'">
-                                                <t t-if="line[1].manual_product_quality &gt; 0">
-                                                    <td id="product" style="width: 38%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:35%" t-esc="'%.2f'%(line[1].manual_product_quality)"/>
-                                        </td>
-                                    </t>
-                                                <t t-if="line[1].manual_product_quality == 0">
-                                                    <td id="product" style="width: 38%; padding: 8px !important" class="text-center">
-                                                        <span class="text-center" style="padding-left:40%" t-esc="'%.2f'%(line[1].product_quality)"/>
-                                        </td>
-                                    </t>
-                                            </t>
                                         </t>
+                                    </td>
+
+
+                                    <t t-if="order_line.manual_product_quality &gt; 0">
+                                        <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.manual_product_quality)"/>
+                                        </td>
+                                    </t>
+                                    <t t-if="order_line.manual_product_quality == 0">
+                                        <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                            <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.product_quality)"/>
+                                        </td>
+                                    </t>
+                                    <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                        <t>
+                                            <span class="text-center" style="padding-left:35%" t-esc="'{:,.2f}'.format(order_line.price_unit)"/>
+                                        </t>
+                                    </td>
+                                    <td id="product" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+                                        <t>
+                                            <span class="text-center" style="padding-left:35%" t-esc="order_line.price_currency.name"/>
+                                        </t>
+                                    </td>
+
+                                    <td class="text-center" style="width: 12%;  padding: 8px !important;  margin-left:10px;">
+
+                                        <span class="text-center" style="padding-left:30%" t-esc="'{:,.2f}'.format(order_line.price_subtotal)"/>
+                                    </td>
                                 </t>
                                 <t t-else="">
                                     <td colspan="99" id="section">
-                                            <span t-field="line[1].name"/>
+                                        <span t-field="order_line.name"/>
                                     </td>
                                 </t>
                             </tr>
                         </t>
-
                     </tbody>
-
                 </table>
+
                 <div style="border-top:2px solid #000; margin-top:20px;">
                     <table style="width: 100% !important; border: 0px;">
                         <tbody style="border: 0px">
                             <!-- Calculate the total subtotal in UGX -->
-                                <t t-set="total_custom_currency" t-value="sum(line.currency_id._convert(line.price_subtotal, line.UGX_currency, o.company_id, o.date_order or fields.Date.today()) for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
-                            <t t-set="total_process_wt" t-value="sum(line.first_process_wt for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
-                                <t t-set="total_qty" t-value="sum(line.product_qty for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
+                            <t t-set="total_custom_currency" t-value="sum(line.currency_id._convert(o.amount_total, line.UGX_currency, o.company_id, o.date_order or fields.Date.today()) for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
+                            <t t-set="total_process_wt" t-value="sum(line.manual_first_process if line.manual_first_process &gt; 0 else line.first_process_wt for line in o.order_line if (line.product_quality &gt; 0 or line.manual_product_quality &gt; 0))"/>
+                            <t t-set="total_qty" t-value="sum(line.product_qty for line in o.order_line)"/>
                             <tr>
 
                                 <td class="text_right" style="width: 50% !important; line-height: 30px; margin: 0px !important; border: 0px !important;">
-                                    <strong>Total</strong>
+                                    <strong style="padding-left:4%">Total</strong>
 
-                                    <span style="padding-left:9%">
+                                    <span style="padding-left:8%">
                                         <t t-esc="'{:,.2f}'.format(total_process_wt)"/>
                                     </span>
-                                    <span style="padding-left:10%">
+                                    <span style="padding-left:9%">
                                         <t t-esc="'{:,.2f}'.format(total_qty)"/>
                                     </span>
                                 </td>
                                 <td name="td_amount_untaxed" class="text_end" style="margin: 0px !important; line-height: 30px; width: 15% !important; border-bottom: 2px solid #000; ">
                                     <span>
-                        USD $:
+                        USD $:       <span style="padding-left:20px;"><t t-esc="'{:,.2f}'.format(o.amount_total)"/></span>
                                     </span>
-                                    <span style="padding-left:50px;">
-                                        <t t-esc="'{:,.2f}'.format(o.amount_total)"/>
-                                    </span>
-                                    <br/>
-                                    <span>
-                        UGX 
-                                    </span>
-                                    <span style="padding-left:50px;">
-                                        <t t-esc="'{:,.0f}'.format(total_custom_currency)"/>
-                                    </span>
+                                    
+                                   
                                 </td>
 
                             </tr>
                             <tr style="border: 0px">
 
                                 <td class="text_right" style="width: 51% !important; line-height: 30px; margin: 0px !important; border: 0px !important;">
-                                    <strong style="margin-left:70%">Payment:</strong>
+                                    <strong style="margin-left:80%">Payment:</strong>
                                 </td>
 
                                 <td name="td_amount_untaxed" class="text_end" style="margin: 0px !important; line-height: 30px; width: 15% !important; ">
                                     <span>
-                       USD $: 
-                                    </span>
-                                    <span style="padding-left:50px;">
-                                        <t t-esc="'{:,.2f}'.format(o.amount_total)"/>
-                                    </span>
-                                    <br/>
-                                    <span>
-                        UGX
-                                    </span>
-                                    <span style="padding-left:50px;">
-                                        <t t-esc="'{:,.0f}'.format(total_custom_currency)"/>
+                       USD $:    <span style="padding-left:20px;"><t t-esc="'{:,.2f}'.format(o.amount_total)"/></span>
                                     </span>
                                 </td>
 
@@ -518,8 +391,9 @@ Tolas</span>
 
                     </table>
                 </div>
-                </t>
             </div>
+
+
 
 
             <p t-field="o.notes" class="mt-4"/>
