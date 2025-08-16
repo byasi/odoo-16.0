@@ -83,6 +83,32 @@ class SaleOrder(models.Model):
 
     amount_total = fields.Monetary(string="Total", store=True, compute='_compute_amounts', tracking=4)
 
+    # Sales 2
+    sales_method = fields.Selection(
+        selection=[
+            ('sales_1', 'Sales 1'),
+            ('sales_2', 'Sales 2'),
+        ],
+        string="Sales Method",  
+        default='sales_1',
+        required=True,
+    )
+    market_price_unit = fields.Many2one('uom.uom', string="Market Price Unit",
+                                        default=lambda self: self.env.ref('uom.product_uom_oz').id)
+    market_price_unit_input = fields.Many2one('uom.uom', string="Market Price Unit Input",
+                                          default=lambda self: self.env.ref('uom.product_uom_gram').id)
+    x_factor = fields.Float(string="Xfactor",default=100, store=True)
+    transaction_price_per_unit = fields.Monetary(string="Transaction Price Per Unit", currency_field='market_price_currency', compute='_compute_transaction_price_per_unit', store=True)
+    transaction_unit = fields.Many2one('uom.uom', string="Transaction Unit",
+                                     default=lambda self: self.env.ref('uom.product_uom_ton').id,
+                                     store=True)
+    convention_market_unit = fields.Float(
+        string="Conversion Market Unit",
+        compute="_compute_convention_market_unit",
+        store=True
+    )
+    
+    
     @api.depends('order_line.price_subtotal', 'order_line.price_tax', 'order_line.price_total')
     def _compute_amounts(self):
         """
@@ -248,6 +274,27 @@ class SaleOrder(models.Model):
             else:
                 order.net_price = self.custom_round_down(order.market_price) if order.market_price else 0.
 
+    @api.depends('convention_market_unit', 'net_price', 'market_price_currency', 'sales_method')
+    def _compute_transaction_price_per_unit(self):
+        for order in self:
+            if order.convention_market_unit and order.net_price and order.market_price_currency:
+                # Use different divisor based on sales method
+                divisor = 31.1034786 if order.sales_method == 'sales_2' else 3
+                transaction_price_per_unit = order.net_price / divisor
+                order.transaction_price_per_unit = self.custom_round_down(transaction_price_per_unit)
+            else:
+                order.transaction_price_per_unit = 0.0
+
+    @api.depends('market_price_unit', 'transaction_unit')
+    def _compute_convention_market_unit(self):
+        for record in self:
+            if record.market_price_unit and record.transaction_unit:
+                record.convention_market_unit = self.custom_round_down(
+                    record.transaction_unit._compute_quantity(1, record.market_price_unit)
+                )
+            else:
+                record.convention_market_unit = 0.0
+
 
     def action_convert_to_sales_order(self):
         """ Confirm the given quotation(s) and set their confirmation date.
@@ -409,13 +456,29 @@ class SaleOrderLine(models.Model):
         digits='Product Unit of Measure', default=1.0,
         store=True, readonly=False, required=True, precompute=True)
 
-    @api.depends('order_id.net_price')
+    @api.depends('order_id.sales_method', 'order_id.net_price', 'order_id.transaction_price_per_unit', 
+                 'order_id.x_factor', 'inventory_product_quality', 'manual_item_quality')
     def _compute_rate(self):
         for line in self:
-            if line.order_id.net_price:
-                line.rate =  line.order_id.net_price/31.1034768
+            if line.order_id.sales_method == 'sales_2':
+                # Sales 2 method: use xfactor and new fields
+                if line.order_id.transaction_price_per_unit and line.order_id.x_factor:
+                    # Use manual_item_quality if available, otherwise fall back to inventory_product_quality
+                    quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                    if quality:
+                        rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * quality
+                        line.rate = self.custom_round_down(rate)
+                    else:
+                        line.rate = 0.0
+                else:
+                    line.rate = 0.0
             else:
-                line.rate = 0.0
+                # Sales 1 method: use default calculation (net_price/31.1034768)
+                if line.order_id.net_price:
+                    rate = line.order_id.net_price / 31.1034768
+                    line.rate = self.custom_round_down(rate)
+                else:
+                    line.rate = 0.0
 
     @api.depends('qty_delivered')
     def _compute_gross_weight(self):

@@ -338,6 +338,190 @@ class PurchaseOrder(models.Model):
             if order.state == 'purchase':
                 order.state = 'unfixed'
 
+    def action_transfer_to_company(self):
+        """Transfer purchase order to another company by creating a sales order."""
+        self.ensure_one()
+        
+        # Check if vendor is a company within the system
+        if not self.partner_id.is_company:
+            raise ValidationError(_("Vendor must be a company to create a transfer."))
+        
+        # For external vendors, company_id is typically not set, so we'll use the current company
+        # or allow the transfer to proceed without this restriction
+        if self.partner_id.company_id and self.partner_id.company_id == self.company_id:
+            raise ValidationError(_("Cannot transfer to the same company."))
+        
+        # Check if purchase order has valid lines
+        lines = self.order_line.filtered(lambda x: not x.display_type)
+        if not lines:
+            raise ValidationError(_("No valid order lines found for transfer."))
+        
+        # Check if purchase order is in a valid state
+        if self.state not in ['draft', 'sent', 'purchase', 'done']:
+            raise ValidationError(_("Purchase order must be in a valid state for transfer."))
+        
+        # Create sales order with aggregated values
+        sale_order_vals = self._prepare_transfer_sale_order()
+        sale_order = self.env['sale.order'].create(sale_order_vals)
+        
+        # Create aggregated order line
+        order_line_vals = self._prepare_aggregated_order_line()
+        sale_order.write({'order_line': [(0, 0, order_line_vals)]})
+        
+        # Add a note about the transfer
+        sale_order.message_post(
+            body=f"Transfer created from Purchase Order: {self.name} (Company: {self.company_id.name})"
+        )
+        
+        # Return action to open the created sales order
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'res_id': sale_order.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def _prepare_transfer_sale_order(self):
+        """Prepare values for creating a transfer sales order."""
+        # Calculate average values from purchase order lines
+        lines = self.order_line.filtered(lambda x: not x.display_type)
+        
+        if not lines:
+            raise ValidationError(_("No valid order lines found for transfer."))
+        
+        # Calculate average values
+        total_market_price = sum(lines.mapped('price'))  # Use the price field from order lines
+        total_discount = self.discount or 0.0
+        total_additions = self.additions or 0.0
+        
+        # Calculate total net weight (first_process_wt)
+        total_net_weight = sum(lines.mapped('first_process_wt'))
+        
+        # Calculate average product quality
+        total_product_quality = sum(lines.mapped('product_quality'))
+        avg_product_quality = total_product_quality / len(lines) if lines else 0
+        
+        # Calculate total product cost
+        total_product_cost = sum(lines.mapped('price_subtotal'))
+        
+        # Use vendor's company if set, otherwise use current company
+        target_company_id = self.partner_id.company_id.id if self.partner_id.company_id else self.company_id.id
+        
+        return {
+            'partner_id': self.partner_id.id,
+            'company_id': target_company_id,
+            'date_order': fields.Datetime.now(),
+            'market_price': total_market_price,
+            'discount': total_discount + total_additions,
+            'net_price': total_market_price + total_discount + total_additions,
+            'state': 'draft',
+            'user_id': self.env.user.id,
+            # Remove manual pricelist_id setting - let Odoo's computed field handle it
+        }
+
+    def _prepare_aggregated_order_line(self):
+        """Prepare values for creating an aggregated order line."""
+        lines = self.order_line.filtered(lambda x: not x.display_type)
+        
+        if not lines:
+            raise ValidationError(_("No valid order lines found for transfer."))
+        
+        # Calculate total values
+        total_net_weight = sum(lines.mapped('first_process_wt'))
+        avg_product_quality = sum(lines.mapped('product_quality')) / len(lines) if lines else 0
+        total_product_cost = sum(lines.mapped('price_subtotal'))
+        
+        # Create a generic product for the transfer
+        transfer_product = self._get_or_create_transfer_product()
+        
+        return {
+            'product_id': transfer_product.id,
+            'product_uom_qty': total_net_weight,
+            'product_uom': transfer_product.uom_id.id,  # Use the product's UOM instead of hardcoding
+            'price_unit': total_product_cost / total_net_weight if total_net_weight > 0 else 0,
+            'net_weight': total_net_weight,
+            'inventory_product_quality': avg_product_quality,
+            'product_cost': total_product_cost,
+            'name': f"Transfer from {self.name} - Aggregated Products",
+        }
+
+    def _get_or_create_transfer_product(self):
+        """Get or create a generic transfer product."""
+        transfer_product_name = "Transfer Product"
+        
+        # Use vendor's company if set, otherwise use current company
+        target_company_id = self.partner_id.company_id.id if self.partner_id.company_id else self.company_id.id
+        
+        transfer_product = self.env['product.product'].search([
+            ('name', '=', transfer_product_name),
+            ('company_id', '=', target_company_id)
+        ], limit=1)
+        
+        if not transfer_product:
+            # Create a new transfer product with gram UOM to match the order line
+            gram_uom = self.env.ref('uom.product_uom_gram')
+            transfer_product = self.env['product.product'].create({
+                'name': transfer_product_name,
+                'type': 'product',
+                'categ_id': self.env.ref('product.product_category_all').id,
+                'company_id': target_company_id,
+                'sale_ok': True,
+                'purchase_ok': False,
+                'list_price': 0.0,
+                'standard_price': 0.0,
+                'uom_id': gram_uom.id,  # Set the product UOM to grams
+                'uom_po_id': gram_uom.id,  # Set purchase UOM to grams
+            })
+        else:
+            # Ensure existing transfer product has gram UOM
+            gram_uom = self.env.ref('uom.product_uom_gram')
+            if transfer_product.uom_id != gram_uom:
+                transfer_product.write({
+                    'uom_id': gram_uom.id,
+                    'uom_po_id': gram_uom.id,
+                })
+        
+        return transfer_product
+
+    def _is_vendor_company(self):
+        """Check if the vendor is a company within the system."""
+        # Add debugging to understand what's happening
+        _logger.info(f"_is_vendor_company called for PO {self.name}")
+        _logger.info(f"partner_id.is_company: {self.partner_id.is_company}")
+        _logger.info(f"partner_id.company_id: {self.partner_id.company_id.name if self.partner_id.company_id else 'None'}")
+        _logger.info(f"self.company_id: {self.company_id.name if self.company_id else 'None'}")
+        
+        # For external vendors, company_id is typically not set, so we'll allow transfers
+        # as long as the vendor is marked as a company (is_company = True)
+        result = self.partner_id.is_company
+        _logger.info(f"_is_vendor_company result: {result}")
+        
+        return result
+
+    can_transfer_to_company = fields.Boolean(
+        string="Can Transfer to Company",
+        compute="_compute_can_transfer_to_company",
+        store=True,  # Temporarily make it stored for debugging
+        default=False,  # Add default value for debugging
+        help="Indicates if this purchase order can be transferred to another company"
+    )
+
+    @api.depends('partner_id', 'partner_id.is_company', 'company_id')
+    def _compute_can_transfer_to_company(self):
+        """Compute whether the purchase order can be transferred to another company."""
+        for order in self:
+            # Add debugging to understand why the button is not visible
+            _logger.info(f"Computing can_transfer_to_company for PO {order.name}")
+            _logger.info(f"partner_id: {order.partner_id.name if order.partner_id else 'None'}")
+            _logger.info(f"partner_id.is_company: {order.partner_id.is_company if order.partner_id else 'None'}")
+            _logger.info(f"order.company_id: {order.company_id.name if order.company_id else 'None'}")
+            
+            result = order._is_vendor_company()
+            _logger.info(f"Result of _is_vendor_company: {result}")
+            
+            order.can_transfer_to_company = result
+
     @api.depends('selected_payment_ids')
     def _compute_payment_amount(self):
         for record in self:
@@ -839,6 +1023,46 @@ class PurchaseOrder(models.Model):
         
         return result
 
+    def test_transfer_computation(self):
+        """Test method to manually trigger computation for debugging."""
+        self.ensure_one()
+        _logger.info("=== Testing Transfer Computation ===")
+        _logger.info(f"Purchase Order: {self.name}")
+        _logger.info(f"Company: {self.company_id.name if self.company_id else 'None'}")
+        _logger.info(f"Partner: {self.partner_id.name if self.partner_id else 'None'}")
+        
+        if self.partner_id:
+            _logger.info(f"Partner is_company: {self.partner_id.is_company}")
+            _logger.info(f"Partner company_id: {self.partner_id.company_id.name if self.partner_id.company_id else 'None'}")
+            
+            # Check if partner has company_id field
+            if hasattr(self.partner_id, 'company_id'):
+                _logger.info("Partner has company_id field")
+            else:
+                _logger.info("Partner does NOT have company_id field")
+                
+            # Check if partner is a company
+            if hasattr(self.partner_id, 'is_company'):
+                _logger.info("Partner has is_company field")
+            else:
+                _logger.info("Partner does NOT have is_company field")
+        
+        # Force computation
+        self._compute_can_transfer_to_company()
+        _logger.info(f"Final can_transfer_to_company value: {self.can_transfer_to_company}")
+        _logger.info("=== End Testing ===")
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Transfer Computation Test',
+                'message': f'can_transfer_to_company: {self.can_transfer_to_company}',
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
 class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
@@ -922,15 +1146,6 @@ class PurchaseOrderLine(models.Model):
                     raise ValidationError(_(
                         "Product Quality must be between 60 and 100."
                     ))
-
-    @api.depends('first_process_wt', 'second_process_wt', 'manual_dd')
-    def _compute_dd(self):
-        for line in self:
-            if line.first_process_wt and line.second_process_wt:
-                dd = self.custom_round_down(line.first_process_wt / (line.first_process_wt - line.second_process_wt))
-                line.dd = dd
-            else:
-                line.dd = 0.0
 
     @api.depends('first_process_wt', 'second_process_wt', )
     def _compute_actual_dd(self):
@@ -1300,6 +1515,8 @@ class PurchaseOrderLine(models.Model):
     def _compute_current_subTotal(self):
         for line in self:
             line.current_subTotal = line.current_price_unit * line.product_qty
+
+
 
 
 class PurchaseOrderDeductions(models.Model):

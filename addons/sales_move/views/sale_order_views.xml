@@ -21,23 +21,39 @@
                     <attribute name="statusbar_visible">draft,unfixed,sale,done</attribute>
                 </xpath>
                 <xpath expr="//field[@name='partner_id']" position="after">
-
+                    <!-- Left Column Fields -->
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price"/>
                     <field name="discount" string="Discount/additions"/>
                     <field name="net_price" string="Net Price"/>
+                    
+                    <!-- Sales Method and Market Price Units -->
+                    <field name="sales_method" string="Sales Method"/>
+                    <field name="market_price_unit" string="Market Price Unit" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="market_price_unit_input" string="Market Price Unit Input" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    
+                    <!-- Payment and Balance Fields -->
                     <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
                     <field name="payment_amount" string="Paid Unfixed Amount"/>
                     <field name="unfixed_balance" string="Balance"/>
 
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', '!=', 'sale')]}" />
                 </xpath>
+                
+                <!-- Right Column Fields -->
                 <xpath expr="//group[@name='order_details']//field[@name='payment_term_id']" position="after">
                     <field name="is_date_order_past" invisible="1"/>
+                    
+                    <!-- Transaction and Unit Fields on the Right - Only visible for Sales 2 -->
+                    <field name="transaction_unit" string="Transaction Unit" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="convention_market_unit" string="Conversion Market Unit" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="x_factor" string="Xfactor" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="transaction_price_per_unit" string="Transaction Price Per Unit" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    
+                    <!-- Current Market Price Fields -->
                     <field name="current_market_price" string="Current Market Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                     <field name="current_net_price" string="Current Net Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                     <field name="profit_loss" string="Profit/Loss" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
-
                 </xpath>
                 <xpath expr="//field[@widget='section_and_note_text']" position="after">
                     <field name="gross_weight" string="Gross Weight" attrs="{
@@ -131,6 +147,14 @@
                     <field name="current_market_price" string="Current Market Price" optional="hide" />
                     <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
                     <field name="product_cost" string="Product Cost" optional="show" />
+                    
+                    <!-- New Sales Order Fields -->
+                    <field name="sales_method" string="Sales Method" optional="hide"/>
+                    <field name="market_price_unit" string="Market Price Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="transaction_unit" string="Transaction Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="x_factor" string="Xfactor" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="transaction_price_per_unit" string="Transaction Price Per Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="convention_market_unit" string="Conversion Market Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
 
                 </xpath>
                 <xpath expr="//tree/field[@name='invoice_status']" position="before">
@@ -156,6 +180,14 @@
                     <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
                     <field name="market_price" string="Market Price" optional="hide" />
                     <field name="rate" string="Unit Price" optional="show" />
+                    
+                    <!-- New Sales Order Fields -->
+                    <field name="sales_method" string="Sales Method" optional="hide"/>
+                    <field name="market_price_unit" string="Market Price Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="transaction_unit" string="Transaction Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="x_factor" string="Xfactor" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="transaction_price_per_unit" string="Transaction Price Per Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
+                    <field name="convention_market_unit" string="Conversion Market Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>
 
                 </xpath>
                 <xpath expr="//tree/field[@name='state']" position="before">

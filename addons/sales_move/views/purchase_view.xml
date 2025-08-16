@@ -53,6 +53,7 @@
                 <xpath expr="//field[@name='currency_id']" position="replace"/>
 
                 <xpath expr="//field[@name='company_id']" position="after">
+                    <field name="can_transfer_to_company" invisible="1"/>
                     <field name="purchase_method" string="Purchase Method"/>
                     <field name="market_price_currency" string="Market Price Currency"/>
                     <field name="market_price" string="Market Price" required="1"/>
@@ -176,6 +177,9 @@
                 <xpath expr="//header" position="inside">
                     <button name="action_convert_to_purchase_order" string="Convert to Purchase Order" type="object" states="unfixed" class="btn-primary" />
                     <button name="action_back_to_unfixed" string="Unfixed" type="object" states="purchase" class="btn-secondary"/>
+                    <button name="action_transfer_to_company" string="Transfer to B" type="object" 
+                            class="btn-success" 
+                            help="Transfer this purchase order to the vendor company by creating a sales order"/>
                     <!-- <button name="recalculate_purchase_cost_chain" string="Update Purchase Cost Chain" type="object" states="purchase,done" class="btn-info" help="Recalculate purchase cost throughout the entire chain when market price has changed"/> -->
                     <!-- <button name="recalculate_purchase_cost_chain_sql" string="Update Purchase Cost Chain (SQL)" type="object" states="purchase,done" class="btn-warning" help="Fast SQL-based recalculation of purchase cost throughout the entire chain"/> -->
                 </xpath>
