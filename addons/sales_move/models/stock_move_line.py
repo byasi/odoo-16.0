@@ -14,9 +14,13 @@ class StockMoveLine(models.Model):
     # product_quality = fields.Float(string="Product Quality", store=True)
     lot_product_quality = fields.Float(string="Product Quality", compute="_compute_lot_product_quality", store=True)  # from Inventory
     lot_first_process_wt = fields.Float(string="First Process Wt", compute="_compute_lot_first_process_wt", store=True) # from Inventory
+    lot_manual_first_process = fields.Float(string="Manual First Process Wt", compute="_compute_lot_manual_first_process", store=True) # from Inventory
+    lot_manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_lot_manual_product_quality", store=True) # from Inventory
     lot_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_lot_purchase_cost", store=True)
     mo_product_quality = fields.Float(string="Product Quality ", compute="_fetch_lot_values", store=True)  # from  manufacturing
     mo_first_process_wt = fields.Float(string="First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
+    mo_manual_first_process = fields.Float(string="Manual First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
+    mo_manual_product_quality = fields.Float(string="Manual Product Quality", compute="_fetch_lot_values", store=True) # from manufacturing
     mo_purchase_cost = fields.Float(string="Purchase Cost", compute="_fetch_lot_values", store=True)
     qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
     product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_quantity", store=True)
@@ -112,6 +116,16 @@ class StockMoveLine(models.Model):
         for line in self:
             line.lot_first_process_wt = line.move_id.first_process_wt
 
+    @api.depends('move_id.manual_first_process')
+    def _compute_lot_manual_first_process(self):
+        for line in self:
+            line.lot_manual_first_process = line.move_id.manual_first_process
+
+    @api.depends('move_id.manual_product_quality')
+    def _compute_lot_manual_product_quality(self):
+        for line in self:
+            line.lot_manual_product_quality = line.move_id.manual_product_quality
+
     @api.depends('move_id.purchase_cost')
     def _compute_lot_purchase_cost(self):
         for line in self:
@@ -127,15 +141,21 @@ class StockMoveLine(models.Model):
                     # Set the values only if matching_line is found
                     line.mo_product_quality = matching_line.lot_product_quality
                     line.mo_first_process_wt = matching_line.lot_first_process_wt
+                    line.mo_manual_first_process = matching_line.lot_manual_first_process
+                    line.mo_manual_product_quality = matching_line.lot_manual_product_quality
                     line.mo_purchase_cost = matching_line.lot_purchase_cost
                 else:
                     # If no matching line is found, set to 0.0
                     line.mo_product_quality = 0.0
                     line.mo_first_process_wt = 0.0
+                    line.mo_manual_first_process = 0.0
+                    line.mo_manual_product_quality = 0.0
                     line.mo_purchase_cost = 0.0
             else:
                 line.mo_product_quality = 0.0
                 line.mo_first_process_wt = 0.0
+                line.mo_manual_first_process = 0.0
+                line.mo_manual_product_quality = 0.0
                 line.mo_purchase_cost = 0.0
 
     def force_recompute_lot_values(self):
@@ -166,6 +186,8 @@ class StockMoveLine(models.Model):
                     line.mo_purchase_cost = matching_line.lot_purchase_cost
                     line.mo_product_quality = matching_line.lot_product_quality
                     line.mo_first_process_wt = matching_line.lot_first_process_wt
+                    line.mo_manual_first_process = matching_line.lot_manual_first_process
+                    line.mo_manual_product_quality = matching_line.lot_manual_product_quality
                 else:
                     # If no matching line found, try to get from the lot's quants
                     quant = self.env['stock.quant'].search([
@@ -185,14 +207,20 @@ class StockMoveLine(models.Model):
                             line.mo_purchase_cost = stock_move.purchase_cost or 0.0
                             line.mo_product_quality = stock_move.product_quality or 0.0
                             line.mo_first_process_wt = stock_move.first_process_wt or 0.0
+                            line.mo_manual_first_process = stock_move.manual_first_process or 0.0
+                            line.mo_manual_product_quality = stock_move.manual_product_quality or 0.0
                         else:
                             line.mo_purchase_cost = 0.0
                             line.mo_product_quality = 0.0
                             line.mo_first_process_wt = 0.0
+                            line.mo_manual_first_process = 0.0
+                            line.mo_manual_product_quality = 0.0
                     else:
                         line.mo_purchase_cost = 0.0
                         line.mo_product_quality = 0.0
                         line.mo_first_process_wt = 0.0
+                        line.mo_manual_first_process = 0.0
+                        line.mo_manual_product_quality = 0.0
 
     def action_update_mo_purchase_cost_from_lots(self):
         """

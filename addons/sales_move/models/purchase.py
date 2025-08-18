@@ -1087,6 +1087,8 @@ class PurchaseOrderLine(models.Model):
                 'purchase_cost': self.price_subtotal,
                 'product_quality': self.product_quality,
                 'first_process_wt': self.first_process_wt,
+                'manual_first_process': self.manual_first_process,
+                'manual_product_quality': self.manual_product_quality,
                 'product_uom_qty': self.first_process_wt,
             })
         return res

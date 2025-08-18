@@ -9,6 +9,8 @@ class MrpProduction(models.Model):
     actual_weighted_pq = fields.Float(string="Actual Weighted Product Quality")
     average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality")
     first_process_wt = fields.Float(string="First Process Wt")
+    manual_first_process = fields.Float(string="Manual First Process Wt", compute="_compute_manual_first_process", store=True)
+    manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_manual_product_quality", store=True)
     display_quantity = fields.Float(
         string="Display Quantity",
         compute='_compute_display_quantity',
@@ -43,6 +45,24 @@ class MrpProduction(models.Model):
                 production.average_product_quality = stock_move.average_lot_product_quality if stock_move else 0.0
             else:
                 production.average_product_quality = 0.0
+
+    @api.depends('move_raw_ids.average_lot_manual_first_process')
+    def _compute_manual_first_process(self):
+        for production in self:
+            if production.move_raw_ids:
+                stock_move = production.move_raw_ids.filtered(lambda m: m.average_lot_manual_first_process).sorted('date', reverse=True)[:1]
+                production.manual_first_process = stock_move.average_lot_manual_first_process if stock_move else 0.0
+            else:
+                production.manual_first_process = 0.0
+
+    @api.depends('move_raw_ids.average_lot_manual_product_quality')
+    def _compute_manual_product_quality(self):
+        for production in self:
+            if production.move_raw_ids:
+                stock_move = production.move_raw_ids.filtered(lambda m: m.average_lot_manual_product_quality).sorted('date', reverse=True)[:1]
+                production.manual_product_quality = stock_move.average_lot_manual_product_quality if stock_move else 0.0
+            else:
+                production.manual_product_quality = 0.0
 
 
     @api.depends('move_raw_ids.total_weighted_average')

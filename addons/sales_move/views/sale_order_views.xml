@@ -71,7 +71,7 @@
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
                     }" />
-                    <field name="manual_item_quality" string="Manual Item Quality" attrs="{
+                    <field name="manual_product_quality" string="Manual Product Quality" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     }" />
                     <field name="product_cost" string="Product Cost" optional="hide" attrs="{
@@ -81,6 +81,25 @@
                     <field name="manual_quantity" string="Manual Quantity" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     }" />
+                    <field name="first_process_wt" string="First Process Wt" attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }" />
+                    <field name="manual_product_quality" string="Manual Product Quality" attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
+                    }" />
+                    <field name="current_rate" string="Current Rate" attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['unfixed'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }" />
+                    <field name="rate" string="Rate" attrs="{
+                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
+                    'readonly': [('qty_delivered_method', '!=', 'manual')]
+                    }" />
+                    <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
+                        'column_invisible': [('parent.state', 'not in', ['unfixed'])],
+                        'readonly': [('qty_delivered_method', '!=', 'manual')]
+                        }" />
 
 
                     <!-- <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
@@ -139,6 +158,7 @@
                     <attribute name="js_class">sales_move_list_controller</attribute>
                 </xpath>
                 <xpath expr="//tree/field[@name='activity_ids']" position="after">
+                    <!-- Fields that exist on sale.order model -->
                     <field name="gross_weight" sum="Gross Weight" string="Gross Weight" optional="show" />
                     <field name="product_quality" string="Product Quality" optional="hide" />
                     <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
@@ -175,6 +195,7 @@
                     <attribute name="js_class">sales_move_list_controller</attribute>
                 </xpath>
                 <xpath expr="//tree/field[@name='activity_ids']" position="after">
+                    <!-- Fields that exist on sale.order model -->
                     <field name="gross_weight" sum="Gross Weight" string="Gross Weight" optional="show" />
                     <field name="product_quality" string="Product Quality" optional="hide" />
                     <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
@@ -198,6 +219,23 @@
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}" sum="Profit or Loss(purchase cost and sale cost)" widget="monetary" optional="hide" />
                     <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
 
+                </xpath>
+            </field>
+        </record>
+
+        <!-- Sale Order Line Tree View -->
+        <record id="view_order_line_tree_inherit" model="ir.ui.view">
+            <field name="name">sale.order.line.tree.inherit</field>
+            <field name="model">sale.order.line</field>
+            <field name="inherit_id" ref="sale.view_order_line_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//tree/field[@name='product_uom']" position="before">
+                    <!-- Line-specific fields -->
+                    <field name="first_process_wt" string="First Process Wt" optional="hide"/>
+                    <field name="manual_product_quality" string="Manual Product Quality" optional="show"/>
+                    <field name="inventory_product_quality" string="Inventory Product Quality" optional="hide"/>
+                    <field name="current_rate" string="Current Rate" optional="hide"/>
+                    <field name="rate" string="Rate" optional="hide"/>
                 </xpath>
             </field>
         </record>

@@ -357,6 +357,7 @@ class SaleOrderLine(models.Model):
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
     inventory_product_quality = fields.Float(string="Inventory Product Quality",compute="_compute_inventory_product_quality", store=True)
     manual_item_quality = fields.Float(string="Manual Item Quality", store=True)
+    manual_product_quality = fields.Float(string="Manual Product Quality", store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True)
     manual_quantity = fields.Float(string="Manual Quantity", store=True)
@@ -366,6 +367,8 @@ class SaleOrderLine(models.Model):
         currency_field='currency_id',
         store=True
     )
+    first_process_wt = fields.Float(string="First Process Wt", store=True)
+    manual_first_process = fields.Float(string="Manual First Process Wt", compute="_compute_manual_first_process", store=True)
 
     price_unit = fields.Float(
         string="Unit Price",
@@ -457,14 +460,14 @@ class SaleOrderLine(models.Model):
         store=True, readonly=False, required=True, precompute=True)
 
     @api.depends('order_id.sales_method', 'order_id.net_price', 'order_id.transaction_price_per_unit', 
-                 'order_id.x_factor', 'inventory_product_quality', 'manual_item_quality')
+                 'order_id.x_factor', 'inventory_product_quality', 'manual_product_quality')
     def _compute_rate(self):
         for line in self:
             if line.order_id.sales_method == 'sales_2':
                 # Sales 2 method: use xfactor and new fields
                 if line.order_id.transaction_price_per_unit and line.order_id.x_factor:
-                    # Use manual_item_quality if available, otherwise fall back to inventory_product_quality
-                    quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                    # Use manual_product_quality if available, otherwise fall back to inventory_product_quality
+                    quality = line.manual_product_quality if line.manual_product_quality else line.inventory_product_quality
                     if quality:
                         rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * quality
                         line.rate = self.custom_round_down(rate)
@@ -479,6 +482,19 @@ class SaleOrderLine(models.Model):
                     line.rate = self.custom_round_down(rate)
                 else:
                     line.rate = 0.0
+
+    @api.depends('move_ids.move_line_ids.lot_manual_first_process')
+    def _compute_manual_first_process(self):
+        for line in self:
+            if line.move_ids:
+                # Get the manual first process from the stock move lines
+                manual_first_process_values = line.move_ids.mapped('move_line_ids.lot_manual_first_process')
+                if manual_first_process_values:
+                    line.manual_first_process = sum(manual_first_process_values)
+                else:
+                    line.manual_first_process = 0.0
+            else:
+                line.manual_first_process = 0.0
 
     @api.depends('qty_delivered')
     def _compute_gross_weight(self):

@@ -18,6 +18,7 @@
             <xpath expr="//field[@name='reserved_uom_qty']" position="before">
                 <field name="mo_first_process_wt" readonly="1" invisible="not context.get('show_lots_m2o')"/>
                 <field name="mo_product_quality" readonly="1" invisible="not context.get('show_lots_m2o')" />
+                <field name="mo_manual_product_quality" readonly="1" invisible="not context.get('show_lots_m2o')"/>
                 <field name="mo_purchase_cost" readonly="1" invisible="not context.get('show_lots_m2o')" />
             </xpath>
         </field>
@@ -33,6 +34,8 @@
                         invisible="not context.get('show_lots_text')"/>
                 <field name="lot_product_quality" groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
                         invisible="not context.get('show_lots_text')"  />
+                <field name="lot_manual_product_quality" readonly="1"  groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
+                        invisible="not context.get('show_lots_text')"/>
                 <field name="lot_purchase_cost" groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
                         invisible="not context.get('show_lots_text')"  />
             </xpath>
