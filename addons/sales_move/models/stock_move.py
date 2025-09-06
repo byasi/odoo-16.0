@@ -62,7 +62,8 @@ class StockMove(models.Model):
         readonly=True
     )
     total_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_total_purchase_cost", store=True, readonly=True)
-
+    original_subTotal = fields.Float(string="Original Subtotal", store=True)
+    total_original_subTotal = fields.Float(string="Total Original Subtotal", compute="_compute_original_subtotal", store=True)
     @api.depends('move_line_ids.mo_product_quality', 'move_line_ids.mo_first_process_wt', 'move_line_ids.mo_manual_first_process', 'move_line_ids.mo_manual_product_quality')
     def _compute_average_values(self):
         for move in self:
@@ -112,17 +113,14 @@ class StockMove(models.Model):
                     lot_cost = sum(line.mo_purchase_cost for line in move.move_line_ids)
             move.total_purchase_cost = lot_cost
 
-
-    @api.model_create_multi
-    def _prepare_stock_moves(self, picking):
-        res = super(StockMove, self)._prepare_stock_moves(picking)
-        for move in res:
-            move.update({
-                'product_quality': self.product_quality,
-                'first_process_wt': self.first_process_wt,
-                'manual_first_process': self.manual_first_process,
-            })
-        return res
+    @api.depends('move_line_ids.mo_original_subTotal')
+    def _compute_original_subtotal(self):
+        for move in self:
+            subtotal = 0.0
+            for line in move.move_line_ids:
+                if line.mo_original_subTotal:
+                    subtotal += line.mo_original_subTotal
+            move.total_original_subTotal = subtotal
 
     def _action_assign(self, force_qty=False):
             """ Reserve stock moves by creating their stock move lines, bypassing FIFO for manually assigned lots and supporting multiple lots. """

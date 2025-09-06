@@ -132,6 +132,9 @@
                 <xpath expr="//field[@name='price_subtotal']" position="after">
                     <field name="current_subTotal" string="Current Subtotal" optional="hide" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                 </xpath>
+                <xpath expr="//field[@name='price_subtotal']" position="after">
+                    <field name="original_subTotal" string="Original Subtotal" optional="hide"/>
+                </xpath>
                 <!-- Remove any <xpath> targeting //table[@class='oe_right']/tbody and any reference to current_profit_loss -->
 
                 <xpath expr="//group[@class='oe_subtotal_footer oe_right']" position="replace">
@@ -176,6 +179,7 @@
                 <xpath expr="//header" position="inside">
                     <button name="action_convert_to_purchase_order" string="Convert to Purchase Order" type="object" states="unfixed" class="btn-primary" />
                     <button name="action_back_to_unfixed" string="Unfixed" type="object" states="purchase" class="btn-secondary"/>
+                    <button name="update_total_first_process_for_existing_orders" string="Update Total First Process" type="object" class="btn-info" help="Update total_first_process for this order if it's showing 0"/>
                     <!-- <button name="recalculate_purchase_cost_chain" string="Update Purchase Cost Chain" type="object" states="purchase,done" class="btn-info" help="Recalculate purchase cost throughout the entire chain when market price has changed"/> -->
                     <!-- <button name="recalculate_purchase_cost_chain_sql" string="Update Purchase Cost Chain (SQL)" type="object" states="purchase,done" class="btn-warning" help="Fast SQL-based recalculation of purchase cost throughout the entire chain"/> -->
                 </xpath>
@@ -194,9 +198,22 @@
             <field name="inherit_id" ref="purchase.purchase_order_kpis_tree"/>
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='amount_untaxed']" position="before">
+                    <field name="total_first_process" string="Actual First Process" sum="Actual First Process" optional="show" />
                     <field name="total_with_weights" string="Total RM" sum="Total RM" optional="show" />
                     <field name="total_without_weights_ugx" string="Total TA" sum="Total TA and SMS" optional="show"/>
                 </xpath>
+            </field>
+        </record>
+        
+        <!-- Server Action to Update All Total First Process -->
+        <record id="action_update_all_total_first_process" model="ir.actions.server">
+            <field name="name">Update All Total First Process</field>
+            <field name="model_id" ref="purchase.model_purchase_order"/>
+            <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+            <field name="state">code</field>
+            <field name="code">
+# Update total_first_process for all purchase orders
+result = env['purchase.order'].update_all_total_first_process()
             </field>
         </record>
     </data>

@@ -28,6 +28,8 @@ class StockMoveLine(models.Model):
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_quantity", store=True)
     lot_name = fields.Char(string="Lot Name", copy=False)
     is_pex_drc = fields.Boolean(compute='_compute_is_pex_drc', store=False)
+    lot_original_subTotal = fields.Float(string="Original Subtotal", compute="_compute_lot_original_subTotal", store=True)
+    mo_original_subTotal = fields.Float(string="Original Subtotal", compute="_fetch_lot_values", store=True)
 
     @api.depends_context('allowed_company_ids')
     def _compute_is_pex_drc(self):
@@ -42,12 +44,21 @@ class StockMoveLine(models.Model):
         if not vals.get('lot_name'):  # Generate only if no lot_name is provided
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
-            # Check if current company is PEX-DRC
+            # Check if current company is PEX-DRC or Pexebb
             current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
             current_company = self.env['res.company'].browse(current_company_id)
-            is_pex_drc = current_company.name == 'PEX-DRC'
-            # Modify the search pattern based on company
-            search_pattern = f"{date_prefix}P-%" if is_pex_drc else f"{date_prefix}-%"
+            company_name = current_company.name
+            
+            if company_name == 'PEX-DRC':
+                search_pattern = f"{date_prefix}P-%"
+                lot_name = f"{date_prefix}P-"
+            elif company_name == 'Pexebb':
+                search_pattern = f"{date_prefix}EB-%"
+                lot_name = f"{date_prefix}EB-"
+            else:
+                search_pattern = f"{date_prefix}-%"
+                lot_name = f"{date_prefix}-"
+            
             # Find the highest sequence for the current date prefix
             last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
             if last_lot:
@@ -59,7 +70,7 @@ class StockMoveLine(models.Model):
                 new_sequence = "001"
 
             # Generate the lot name based on company
-            vals['lot_name'] = f"{date_prefix}P-{new_sequence}" if is_pex_drc else f"{date_prefix}-{new_sequence}"
+            vals['lot_name'] = lot_name + new_sequence
         return super(StockMoveLine, self).create(vals)
 
     @api.model
@@ -70,13 +81,20 @@ class StockMoveLine(models.Model):
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
             
-            # Check if current company is PEX-DRC
+            # Check if current company is PEX-DRC or Pexebb
             current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
             current_company = self.env['res.company'].browse(current_company_id)
-            is_pex_drc = current_company.name == 'PEX-DRC'
+            company_name = current_company.name
             
-            # Modify the search pattern based on company
-            search_pattern = f"{date_prefix}P-%" if is_pex_drc else f"{date_prefix}-%"
+            if company_name == 'PEX-DRC':
+                search_pattern = f"{date_prefix}P-%"
+                lot_name = f"{date_prefix}P-"
+            elif company_name == 'Pexebb':
+                search_pattern = f"{date_prefix}EB-%"
+                lot_name = f"{date_prefix}EB-"
+            else:
+                search_pattern = f"{date_prefix}-%"
+                lot_name = f"{date_prefix}-"
             
             # Find the highest sequence for the current date prefix
             last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
@@ -89,7 +107,7 @@ class StockMoveLine(models.Model):
                 new_sequence = "001"
             
             # Generate the lot name based on company
-            vals['lot_name'] = f"{date_prefix}P-{new_sequence}" if is_pex_drc else f"{date_prefix}-{new_sequence}"
+            vals['lot_name'] = lot_name + new_sequence
         return vals
 
     # @api.constrains('lot_name')
@@ -131,7 +149,13 @@ class StockMoveLine(models.Model):
         for line in self:
             line.lot_purchase_cost = line.move_id.purchase_cost
 
-    @api.depends('lot_id', 'lot_purchase_cost')
+    @api.depends('move_id.original_subTotal')
+    def _compute_lot_original_subTotal(self):
+        for line in self:
+            line.lot_original_subTotal = line.move_id.original_subTotal
+
+
+    @api.depends('lot_id', 'lot_purchase_cost', 'move_id.original_subTotal')
     def _fetch_lot_values(self):
         for line in self:
             if line.lot_id and line.lot_id.name:
@@ -144,19 +168,25 @@ class StockMoveLine(models.Model):
                     line.mo_manual_first_process = matching_line.lot_manual_first_process
                     line.mo_manual_product_quality = matching_line.lot_manual_product_quality
                     line.mo_purchase_cost = matching_line.lot_purchase_cost
+                    # Get lot_original_subTotal from the stock move, not from other move lines
+                    line.mo_original_subTotal = matching_line.lot_original_subTotal or 0.0
                 else:
-                    # If no matching line is found, set to 0.0
-                    line.mo_product_quality = 0.0
-                    line.mo_first_process_wt = 0.0
-                    line.mo_manual_first_process = 0.0
-                    line.mo_manual_product_quality = 0.0
-                    line.mo_purchase_cost = 0.0
+                    # If no matching line is found, get values from the stock move
+                    line.mo_product_quality = line.move_id.product_quality or 0.0
+                    line.mo_first_process_wt = line.move_id.first_process_wt or 0.0
+                    line.mo_manual_first_process = line.move_id.manual_first_process or 0.0
+                    line.mo_manual_product_quality = line.move_id.manual_product_quality or 0.0
+                    line.mo_purchase_cost = line.move_id.purchase_cost or 0.0
+                    # Get lot_original_subTotal from the stock move
+                    line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
             else:
-                line.mo_product_quality = 0.0
-                line.mo_first_process_wt = 0.0
-                line.mo_manual_first_process = 0.0
-                line.mo_manual_product_quality = 0.0
-                line.mo_purchase_cost = 0.0
+                # Get values from the stock move when no lot is assigned
+                line.mo_product_quality = line.move_id.product_quality or 0.0
+                line.mo_first_process_wt = line.move_id.first_process_wt or 0.0
+                line.mo_manual_first_process = line.move_id.manual_first_process or 0.0
+                line.mo_manual_product_quality = line.move_id.manual_product_quality or 0.0
+                line.mo_purchase_cost = line.move_id.purchase_cost or 0.0
+                line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
 
     def force_recompute_lot_values(self):
         """
@@ -167,7 +197,7 @@ class StockMoveLine(models.Model):
             line._fetch_lot_values()
             line._compute_product_quantity()
             line._compute_weighted_average_quality()
-
+    
     def update_mo_purchase_cost_from_lots(self):
         """
         Update mo_purchase_cost for all stock move lines based on lot names.
@@ -188,6 +218,8 @@ class StockMoveLine(models.Model):
                     line.mo_first_process_wt = matching_line.lot_first_process_wt
                     line.mo_manual_first_process = matching_line.lot_manual_first_process
                     line.mo_manual_product_quality = matching_line.lot_manual_product_quality
+                    # Get lot_original_subTotal from the stock move, not from other move lines
+                    line.mo_original_subTotal = matching_line.lot_original_subTotal or 0.0
                 else:
                     # If no matching line found, try to get from the lot's quants
                     quant = self.env['stock.quant'].search([
@@ -209,18 +241,21 @@ class StockMoveLine(models.Model):
                             line.mo_first_process_wt = stock_move.first_process_wt or 0.0
                             line.mo_manual_first_process = stock_move.manual_first_process or 0.0
                             line.mo_manual_product_quality = stock_move.manual_product_quality or 0.0
+                            line.mo_original_subTotal = stock_move.original_subTotal or 0.0
                         else:
                             line.mo_purchase_cost = 0.0
                             line.mo_product_quality = 0.0
                             line.mo_first_process_wt = 0.0
                             line.mo_manual_first_process = 0.0
                             line.mo_manual_product_quality = 0.0
+                            line.mo_original_subTotal = 0.0
                     else:
                         line.mo_purchase_cost = 0.0
                         line.mo_product_quality = 0.0
                         line.mo_first_process_wt = 0.0
                         line.mo_manual_first_process = 0.0
                         line.mo_manual_product_quality = 0.0
+                        line.mo_original_subTotal = 0.0
 
     def action_update_mo_purchase_cost_from_lots(self):
         """
@@ -238,7 +273,7 @@ class StockMoveLine(models.Model):
                 'sticky': False,
             }
         }
-
+    
     @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
     def _compute_qty_done(self):
         if self.env.context.get('skip_fetch_lot_values'):

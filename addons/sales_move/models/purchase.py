@@ -101,6 +101,12 @@ class PurchaseOrder(models.Model):
     is_date_approve_past = fields.Boolean(
         compute="_compute_is_date_approve_past", store=True
     )
+    total_first_process = fields.Float(
+        string='Total First Process',
+        compute='_compute_totals',
+        store=True
+    )
+   
 
     def action_create_invoice(self):
         """ Override the bill creation to copy the Order Deadline as the Bill Date. """
@@ -126,16 +132,19 @@ class PurchaseOrder(models.Model):
             total_with_weights = 0
             total_without_weights = 0
             total_without_weights_ugx = 0
+            total_first_process = 0
             for line in order.order_line:
                 if line.first_process_wt > 0 and line.second_process_wt > 0:
                     total_with_weights += line.price_subtotal
+                    total_first_process += line.first_process_wt
                 else:
                     total_without_weights += line.price_subtotal
                     total_without_weights_ugx += line.price_unit
+                    total_first_process += line.first_process_wt
             order.total_with_weights = total_with_weights
             order.total_without_weights = total_without_weights
             order.total_without_weights_ugx = total_without_weights_ugx
-
+            order.total_first_process = total_first_process
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
@@ -645,6 +654,7 @@ class PurchaseOrder(models.Model):
             ])
             for production in mrp_productions:
                 production._compute_mrp_purchase_cost()
+                # The mo_original_subTotal will be automatically computed via @api.depends
             
             # Step 4: Update stock move lines in MRP productions
             mrp_move_lines = self.env['stock.move.line'].search([
@@ -660,6 +670,11 @@ class PurchaseOrder(models.Model):
             ])
             all_affected_move_lines.force_recompute_lot_values()
             all_affected_move_lines.update_mo_purchase_cost_from_lots()
+            all_affected_move_lines.force_recompute_original_subtotal()
+            
+            # Step 5.5: Force recomputation of all MRP productions
+            all_mrp_productions = self.env['mrp.production'].search([])
+            all_mrp_productions.force_recompute_original_subtotal()
             
             # Step 6: Update sales order lines that reference these stock moves
             sale_order_lines = self.env['sale.order.line'].search([
@@ -819,6 +834,60 @@ class PurchaseOrder(models.Model):
             }
         }
 
+    def update_total_first_process_for_existing_orders(self):
+        """
+        Update total_first_process for existing purchase orders that don't have this value calculated.
+        This method is useful for updating old purchase orders after adding the total_first_process field.
+        """
+        # Find all purchase orders where total_first_process is 0 or NULL
+        orders_to_update = self.search([
+            '|',
+            ('total_first_process', '=', 0),
+            ('total_first_process', '=', False)
+        ])
+        
+        updated_count = 0
+        for order in orders_to_update:
+            # Force recomputation of the totals
+            order._compute_totals()
+            updated_count += 1
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Total First Process Updated',
+                'message': f'Updated total_first_process for {updated_count} purchase order(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def update_all_total_first_process(self):
+        """
+        Update total_first_process for all purchase orders in the system.
+        This is a model method that can be called from the UI or via a scheduled action.
+        """
+        all_orders = self.search([])
+        updated_count = 0
+        
+        for order in all_orders:
+            # Force recomputation of the totals
+            order._compute_totals()
+            updated_count += 1
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'All Total First Process Updated',
+                'message': f'Updated total_first_process for {updated_count} purchase order(s).',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
     @api.model
     def create(self, vals):
         """Override create to handle automatic recalculation"""
@@ -903,6 +972,8 @@ class PurchaseOrderLine(models.Model):
     product_qty = fields.Float(string='Quantity', required=True, compute='_compute_product_qty', store=True,
                                readonly=False)
     product_uom = fields.Many2one('uom.uom', compute='_compute_product_uom', store=True, readonly=False)
+    
+
 
     # custom_round_down(2302.842/dd)-219.318
 
@@ -1090,6 +1161,7 @@ class PurchaseOrderLine(models.Model):
                 'manual_first_process': self.manual_first_process,
                 'manual_product_quality': self.manual_product_quality,
                 'product_uom_qty': self.first_process_wt,
+                'original_subTotal': self.original_subTotal,  # Add original_subTotal
             })
         return res
 
@@ -1260,6 +1332,7 @@ class PurchaseOrderLine(models.Model):
     current_price_unit = fields.Float(string="Current Price Unit", compute="_compute_current_price_unit", store=True)
     current_subTotal = fields.Monetary(string="Current Subtotal", compute="_compute_current_subTotal", store=True, currency_field='price_currency')
     current_amount = fields.Monetary(string="Current Amount", compute="_compute_current_amount", store=True, currency_field='price_currency')
+    original_subTotal = fields.Monetary(string="Original Subtotal", compute="_compute_original_subTotal", store=True, currency_field='price_currency')
 
     @api.depends('qty_g', 'product_quality', 'manual_product_quality', 'order_id.current_transaction_price_per_unit',
                  'order_id.x_factor')
@@ -1302,6 +1375,19 @@ class PurchaseOrderLine(models.Model):
     def _compute_current_subTotal(self):
         for line in self:
             line.current_subTotal = line.current_price_unit * line.product_qty
+
+    @api.depends('qty_g', 'product_quality', 'order_id.transaction_price_per_unit', 'order_id.x_factor')
+    def _compute_original_subTotal(self):
+        for line in self:
+            if line.qty_g and line.product_quality and line.order_id.transaction_price_per_unit and line.order_id.x_factor:
+                try:
+                    # Calculate original subtotal using product_quality (not manual_product_quality)
+                    original_rate = self.custom_round_down((line.order_id.transaction_price_per_unit / line.order_id.x_factor) * line.product_quality)
+                    line.original_subTotal = self.custom_round_down(original_rate * line.product_qty)
+                except ZeroDivisionError:
+                    line.original_subTotal = 0.0
+            else:
+                line.original_subTotal = 0.0
 
 
 class PurchaseOrderDeductions(models.Model):

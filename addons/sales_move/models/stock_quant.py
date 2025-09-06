@@ -7,6 +7,7 @@ class StockQuant(models.Model):
     first_process_wt = fields.Float(string="First Process Wt")
     manual_first_process = fields.Float(string="Manual First Process Wt")
     manual_product_quality = fields.Float(string="Manual Product Quality")
+    lot_original_subTotal = fields.Float(string="Lot Original Subtotal")
 
     @api.model
     def create(self, vals):
@@ -16,11 +17,12 @@ class StockQuant(models.Model):
         if 'move_ids' in vals:
             move = self.env['stock.move'].browse(vals['move_ids'][0][2]) if vals['move_ids'] else False
             if move:
-                vals.update({
+                quant.write({
                     'product_quality': move.product_quality,
                     'first_process_wt': move.first_process_wt,
                     'manual_first_process': move.manual_first_process,
                     'manual_product_quality': move.manual_product_quality,
+                    'lot_original_subTotal': move.original_subTotal,
                 })
         
         return quant

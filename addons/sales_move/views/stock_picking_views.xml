@@ -11,6 +11,7 @@
                     <field name="product_quality" string="Product Quality"/>
                     <field name="manual_product_quality" string="Manual Product Quality"/>
                     <field name="purchase_cost" string="Purchase Cost"/>
+                    <field name="total_original_subTotal" string="Original Purcase Cost"/>
                 </xpath>
             </field>
         </record>

@@ -18,6 +18,8 @@ class MrpProduction(models.Model):
         readonly=True
     )
     purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_mrp_purchase_cost", store=True)
+    original_subTotal = fields.Float(string="Original Subtotal", compute="_compute_mrp_original_subtotal", store=True)
+    mo_original_subTotal = fields.Float(string="MO Original Subtotal", compute="_compute_mrp_original_subtotal", store=True)
 
     @api.depends('move_raw_ids.total_purchase_cost')
     def _compute_mrp_purchase_cost(self):
@@ -73,6 +75,16 @@ class MrpProduction(models.Model):
                 production.weighted_average_pq = stock_move.total_weighted_average if stock_move else 0.0
             else:
                 production.weighted_average_pq = 0.0
+
+    @api.depends('move_raw_ids.original_subTotal')
+    def _compute_mrp_original_subtotal(self):
+        for production in self:
+            if production.move_raw_ids:
+                # Get the total original_subTotal from all raw material moves
+                total_original_subtotal = sum(production.move_raw_ids.mapped('original_subTotal'))
+                production.mo_original_subTotal = total_original_subtotal
+            else:
+                production.mo_original_subTotal = 0.0
 
     def button_mark_done(self):
         self._button_mark_done_sanity_checks()
@@ -211,6 +223,19 @@ class MrpProduction(models.Model):
             self.env['procurement.group'].run(procurements)
 
         return update_info
+    
+    def force_recompute_original_subtotal(self):
+        """
+        Force recomputation of mo_original_subTotal for all MRP productions.
+        This method specifically updates the mo_original_subTotal from stock moves.
+        """
+        for production in self:
+            if production.move_raw_ids:
+                # Get the total original_subTotal from all raw material moves
+                total_original_subtotal = sum(production.move_raw_ids.mapped('original_subTotal'))
+                production.mo_original_subTotal = total_original_subtotal
+            else:
+                production.mo_original_subTotal = 0.0
 
 class ChangeProductionQty(models.TransientModel):
     _inherit = 'change.production.qty'
