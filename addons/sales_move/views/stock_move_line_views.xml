@@ -18,7 +18,9 @@
         <field name="arch" type="xml">
             <xpath expr="//tree" position="inside">
                 <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="mo_net_price" string="MO Net Price" readonly="1" optional="show"/>
                 <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_net_price" string="Lot Net Price" readonly="1" optional="show"/>
                 <field name="lot_original_subTotal" string="Lot Original Subtotal" readonly="1" optional="show"/>
             </xpath>
         </field>
@@ -31,7 +33,9 @@
         <field name="arch" type="xml">
             <xpath expr="//tree" position="inside">
                 <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="mo_net_price" string="MO Net Price" readonly="1" optional="show"/>
                 <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_net_price" string="Lot Net Price" readonly="1" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -44,7 +48,9 @@
         <field name="arch" type="xml">
             <xpath expr="//tree" position="inside">
                 <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="mo_net_price" string="MO Net Price" readonly="1" optional="show"/>
                 <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_net_price" string="Lot Net Price" readonly="1" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -57,7 +63,9 @@
         <field name="arch" type="xml">
             <xpath expr="//tree" position="inside">
                 <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1" optional="show"/>
+                <field name="mo_net_price" string="MO Net Price" readonly="1" optional="show"/>
                 <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1" optional="show"/>
+                <field name="lot_net_price" string="Lot Net Price" readonly="1" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -78,7 +86,9 @@
             <xpath expr="//group" position="inside">
                 <group string="Purchase Cost Information">
                     <field name="lot_purchase_cost" string="Lot Purchase Cost" readonly="1"/>
+                    <field name="lot_net_price" string="Lot Net Price" readonly="1"/>
                     <field name="mo_purchase_cost" string="MO Purchase Cost" readonly="1"/>
+                    <field name="mo_net_price" string="MO Net Price" readonly="1"/>
                     <field name="lot_original_subTotal" string="Lot Original Subtotal" readonly="1"/>
                     <field name="mo_original_subTotal" string="MO Original Subtotal" readonly="1"/>
                     <field name="lot_product_quality" string="Lot Product Quality" readonly="1"/>

@@ -30,6 +30,8 @@ class StockMove(models.Model):
     readonly=True
     )
     purchase_cost = fields.Float(string="Purchase Cost", store=True, readonly=True)
+    net_price = fields.Float(string="Net Price", store=True, readonly=True)
+    total_net_price = fields.Float(string="Total Net Price", compute="_compute_total_net_price", store=True, readonly=True)
     display_quantity = fields.Float(
     string="Product Quantity",
     compute="_compute_display_quantity",
@@ -112,6 +114,15 @@ class StockMove(models.Model):
                 if line.mo_purchase_cost:
                     lot_cost = sum(line.mo_purchase_cost for line in move.move_line_ids)
             move.total_purchase_cost = lot_cost
+
+    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_net_price')
+    def _compute_total_net_price(self):
+        for move in self:
+            lot_net_price = 0.0
+            for line in move.move_line_ids:
+                if line.mo_net_price:
+                    lot_net_price = sum(line.mo_net_price for line in move.move_line_ids)
+            move.total_net_price = lot_net_price
 
     @api.depends('move_line_ids.mo_original_subTotal')
     def _compute_original_subtotal(self):

@@ -639,6 +639,11 @@ class PurchaseOrder(models.Model):
                     move.purchase_cost = purchase_line.current_subTotal
                     # Trigger recomputation of total_purchase_cost
                     move._compute_total_purchase_cost()
+                # Update net_price from purchase line
+                if purchase_line and purchase_line.net_price:
+                    move.net_price = purchase_line.net_price
+                    # Trigger recomputation of total_net_price
+                    move._compute_total_net_price()
             
             # Step 2: Update stock move lines
             stock_move_lines = self.env['stock.move.line'].search([
@@ -654,6 +659,7 @@ class PurchaseOrder(models.Model):
             ])
             for production in mrp_productions:
                 production._compute_mrp_purchase_cost()
+                production._compute_mrp_net_price()
                 # The mo_original_subTotal will be automatically computed via @api.depends
             
             # Step 4: Update stock move lines in MRP productions
@@ -705,10 +711,11 @@ class PurchaseOrder(models.Model):
         This method uses direct SQL updates for better performance on large datasets.
         """
         for order in self:
-            # Step 1: Update stock.move.purchase_cost
+            # Step 1: Update stock.move.purchase_cost and net_price
             self.env.cr.execute("""
                 UPDATE stock_move sm
-                SET purchase_cost = pol.current_subtotal
+                SET purchase_cost = pol.current_subtotal,
+                    net_price = pol.net_price
                 FROM purchase_order_line pol
                 WHERE sm.purchase_line_id = pol.id
                 AND pol.order_id = %s
@@ -716,10 +723,11 @@ class PurchaseOrder(models.Model):
                 AND pol.current_subtotal > 0
             """, (order.id,))
             
-            # Step 2: Update stock_move_line.lot_purchase_cost
+            # Step 2: Update stock_move_line.lot_purchase_cost and lot_net_price
             self.env.cr.execute("""
                 UPDATE stock_move_line sml
-                SET lot_purchase_cost = sm.purchase_cost
+                SET lot_purchase_cost = sm.purchase_cost,
+                    lot_net_price = sm.net_price
                 FROM stock_move sm
                 WHERE sml.move_id = sm.id
                 AND sm.purchase_line_id IN (
@@ -727,7 +735,7 @@ class PurchaseOrder(models.Model):
                 )
             """, (order.id,))
             
-            # Step 3: Update stock_move_line.mo_purchase_cost based on lot names
+            # Step 3: Update stock_move_line.mo_purchase_cost and mo_net_price based on lot names
             self.env.cr.execute("""
                 UPDATE stock_move_line sml
                 SET mo_purchase_cost = (
@@ -735,6 +743,13 @@ class PurchaseOrder(models.Model):
                     FROM stock_move_line sml2 
                     WHERE sml2.lot_id = sml.lot_id 
                     AND sml2.lot_purchase_cost IS NOT NULL 
+                    LIMIT 1
+                ),
+                mo_net_price = (
+                    SELECT lot_net_price 
+                    FROM stock_move_line sml2 
+                    WHERE sml2.lot_id = sml.lot_id 
+                    AND sml2.lot_net_price IS NOT NULL 
                     LIMIT 1
                 )
                 WHERE sml.lot_id IS NOT NULL
@@ -745,7 +760,7 @@ class PurchaseOrder(models.Model):
                 )
             """, (order.id,))
             
-            # Step 4: Update mrp.production.purchase_cost
+            # Step 4: Update mrp.production.purchase_cost and net_price
             self.env.cr.execute("""
                 UPDATE mrp_production mp
                 SET purchase_cost = (
@@ -755,6 +770,13 @@ class PurchaseOrder(models.Model):
                     AND sm.total_purchase_cost IS NOT NULL
                     ORDER BY sm.date DESC
                     LIMIT 1
+                ),
+                net_price = (
+                    SELECT AVG(sm.total_net_price)
+                    FROM stock_move sm
+                    WHERE sm.production_id = mp.id
+                    AND sm.total_net_price IS NOT NULL
+                    AND sm.total_net_price > 0
                 )
                 WHERE mp.id IN (
                     SELECT DISTINCT sm.production_id
@@ -973,7 +995,12 @@ class PurchaseOrderLine(models.Model):
                                readonly=False)
     product_uom = fields.Many2one('uom.uom', compute='_compute_product_uom', store=True, readonly=False)
     
+    net_price = fields.Monetary(string="Net Price", compute="_compute_net_price", store=True)
 
+    @api.depends('order_id.net_price')
+    def _compute_net_price(self):
+        for line in self:
+            line.net_price = line.order_id.net_price
 
     # custom_round_down(2302.842/dd)-219.318
 
@@ -1161,7 +1188,8 @@ class PurchaseOrderLine(models.Model):
                 'manual_first_process': self.manual_first_process,
                 'manual_product_quality': self.manual_product_quality,
                 'product_uom_qty': self.first_process_wt,
-                'original_subTotal': self.original_subTotal,  # Add original_subTotal
+                'original_subTotal': self.original_subTotal,
+                'net_price': self.net_price,
             })
         return res
 

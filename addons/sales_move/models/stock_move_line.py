@@ -17,11 +17,13 @@ class StockMoveLine(models.Model):
     lot_manual_first_process = fields.Float(string="Manual First Process Wt", compute="_compute_lot_manual_first_process", store=True) # from Inventory
     lot_manual_product_quality = fields.Float(string="Manual Product Quality", compute="_compute_lot_manual_product_quality", store=True) # from Inventory
     lot_purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_lot_purchase_cost", store=True)
+    lot_net_price = fields.Float(string="Net Price", compute="_compute_lot_net_price", store=True)
     mo_product_quality = fields.Float(string="Product Quality ", compute="_fetch_lot_values", store=True)  # from  manufacturing
     mo_first_process_wt = fields.Float(string="First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
     mo_manual_first_process = fields.Float(string="Manual First Process Wt", compute="_fetch_lot_values", store=True) # from manufacturing
     mo_manual_product_quality = fields.Float(string="Manual Product Quality", compute="_fetch_lot_values", store=True) # from manufacturing
     mo_purchase_cost = fields.Float(string="Purchase Cost", compute="_fetch_lot_values", store=True)
+    mo_net_price = fields.Float(string="Net Price", compute="_fetch_lot_values", store=True)
     qty_done = fields.Float(string="Done Quantity", compute="_compute_qty_done", store=True)
     product_quantity = fields.Float(string="Product Quantity", compute="_compute_product_quantity", store=True)
     average_product_quality = fields.Float(string="Product Quality", compute="_compute_product_quantity", store=True)
@@ -149,13 +151,18 @@ class StockMoveLine(models.Model):
         for line in self:
             line.lot_purchase_cost = line.move_id.purchase_cost
 
+    @api.depends('move_id.net_price')
+    def _compute_lot_net_price(self):
+        for line in self:
+            line.lot_net_price = line.move_id.net_price
+
     @api.depends('move_id.original_subTotal')
     def _compute_lot_original_subTotal(self):
         for line in self:
             line.lot_original_subTotal = line.move_id.original_subTotal
 
 
-    @api.depends('lot_id', 'lot_purchase_cost', 'move_id.original_subTotal')
+    @api.depends('lot_id', 'lot_purchase_cost', 'lot_net_price', 'move_id.original_subTotal')
     def _fetch_lot_values(self):
         for line in self:
             if line.lot_id and line.lot_id.name:
@@ -168,6 +175,7 @@ class StockMoveLine(models.Model):
                     line.mo_manual_first_process = matching_line.lot_manual_first_process
                     line.mo_manual_product_quality = matching_line.lot_manual_product_quality
                     line.mo_purchase_cost = matching_line.lot_purchase_cost
+                    line.mo_net_price = matching_line.lot_net_price
                     # Get lot_original_subTotal from the stock move, not from other move lines
                     line.mo_original_subTotal = matching_line.lot_original_subTotal or 0.0
                 else:
@@ -177,6 +185,7 @@ class StockMoveLine(models.Model):
                     line.mo_manual_first_process = line.move_id.manual_first_process or 0.0
                     line.mo_manual_product_quality = line.move_id.manual_product_quality or 0.0
                     line.mo_purchase_cost = line.move_id.purchase_cost or 0.0
+                    line.mo_net_price = line.move_id.net_price or 0.0
                     # Get lot_original_subTotal from the stock move
                     line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
             else:
@@ -186,6 +195,7 @@ class StockMoveLine(models.Model):
                 line.mo_manual_first_process = line.move_id.manual_first_process or 0.0
                 line.mo_manual_product_quality = line.move_id.manual_product_quality or 0.0
                 line.mo_purchase_cost = line.move_id.purchase_cost or 0.0
+                line.mo_net_price = line.move_id.net_price or 0.0
                 line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
 
     def force_recompute_lot_values(self):

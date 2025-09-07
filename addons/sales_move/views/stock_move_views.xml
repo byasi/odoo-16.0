@@ -7,6 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='next_serial']" position="before">
                 <field name="total_original_subTotal" string="Original Purcase Cost" readonly="1"/>
+                <field name="total_net_price" string="Total Net Price" readonly="1"/>
             </xpath>
         </field>
     </record>
@@ -21,6 +22,7 @@
                 <field name="mo_product_quality" readonly="1" invisible="not context.get('show_lots_m2o')" />
                 <field name="mo_manual_product_quality" readonly="1" invisible="not context.get('show_lots_m2o')"/>
                 <field name="mo_purchase_cost" readonly="1" invisible="not context.get('show_lots_m2o')" />
+                <field name="mo_net_price" readonly="1" invisible="not context.get('show_lots_m2o')" />
                 <field name="mo_original_subTotal" readonly="1" invisible="not context.get('show_lots_m2o')" />
                 <!-- <field name="lot_original_subTotal" readonly="1" invisible="not context.get('show_lots_m2o')" /> -->
             </xpath>
@@ -40,6 +42,8 @@
                 <field name="lot_manual_product_quality" readonly="1"  groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
                         invisible="not context.get('show_lots_text')"/>
                 <field name="lot_purchase_cost" groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
+                        invisible="not context.get('show_lots_text')"  />
+                <field name="lot_net_price" groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
                         invisible="not context.get('show_lots_text')"  />
                 <field name="lot_original_subTotal" readonly="1" groups="stock.group_production_lot" attrs="{'readonly': ['&amp;', ('package_level_id', '!=', False), ('parent.picking_type_entire_packs', '=', True)]}"
                         invisible="not context.get('show_lots_text')"  />

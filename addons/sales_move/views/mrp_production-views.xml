@@ -18,13 +18,18 @@
                     <div class='o_row' name="pq_div">
                         <field name="purchase_cost" string="Purchase Cost"/>
                     </div>
+                    <label for="net_price" />
+                    <div class='o_row' name="np_div">
+                        <field name="net_price" string="Average Net Price"/>
+                    </div>
                 </xpath>
                 <xpath expr="//page[@name='components']//field[@name='product_uom_qty']" position="after">
                     <field name="total_weighted_average" string="Total Weighted Average Quality" />
                     <field name="total_weighted_average_manual" string="Total Weighted Average Quality Manual"/>
                     <field name="actual_weighted_pq" string="Manual Weighted Product Quality"/>
                     <field name="total_purchase_cost" string="Product Cost"/>
-                    <field name="total_original_subTotal" string=" Original Purcase Cost"/>
+                    <field name="total_net_price" string="Average Net Price"/>
+                    <!-- <field name="total_original_subTotal" string=" Original Purcase Cost"/> -->
                     <!-- <field name="manual_product_quality" string="Manual Product Quality"/> -->
                     <!-- <field name="display_quantity" string="Product Quantity" /> -->
                     <!-- <field name="average_lot_product_quality" string="Average Product Quality" /> -->

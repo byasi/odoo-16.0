@@ -18,6 +18,7 @@ class MrpProduction(models.Model):
         readonly=True
     )
     purchase_cost = fields.Float(string="Purchase Cost", compute="_compute_mrp_purchase_cost", store=True)
+    net_price = fields.Float(string="Average Net Price", compute="_compute_mrp_net_price", store=True)
     original_subTotal = fields.Float(string="Original Subtotal", compute="_compute_mrp_original_subtotal", store=True)
     mo_original_subTotal = fields.Float(string="MO Original Subtotal", compute="_compute_mrp_original_subtotal", store=True)
 
@@ -29,6 +30,19 @@ class MrpProduction(models.Model):
                 production.purchase_cost = stock_move.total_purchase_cost if stock_move else 0.0
             else:
                 production.purchase_cost = 0.0
+
+    @api.depends('move_raw_ids.total_net_price')
+    def _compute_mrp_net_price(self):
+        for production in self:
+            if production.move_raw_ids:
+                # Calculate average net price from all raw material moves
+                moves_with_net_price = production.move_raw_ids.filtered(lambda m: m.total_net_price > 0)
+                if moves_with_net_price:
+                    production.net_price = sum(moves_with_net_price.mapped('total_net_price')) / len(moves_with_net_price)
+                else:
+                    production.net_price = 0.0
+            else:
+                production.net_price = 0.0
 
     @api.depends('move_raw_ids.display_quantity')
     def _compute_display_quantity(self):
