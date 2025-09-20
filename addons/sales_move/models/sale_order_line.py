@@ -12,6 +12,7 @@ READONLY_FIELD_STATES = {
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+
     state = fields.Selection(
         selection_add=[('unfixed', 'Unfixed')],  # Add new state
         ondelete={'unfixed': 'set default'}
@@ -107,7 +108,6 @@ class SaleOrder(models.Model):
         compute="_compute_convention_market_unit",
         store=True
     )
-    
     
     @api.depends('order_line.price_subtotal', 'order_line.price_tax', 'order_line.price_total')
     def _compute_amounts(self):
@@ -279,7 +279,7 @@ class SaleOrder(models.Model):
         for order in self:
             if order.convention_market_unit and order.net_price and order.market_price_currency:
                 # Use different divisor based on sales method
-                divisor = 31.1034786 if order.sales_method == 'sales_2' else 3
+                divisor = 3 if order.sales_method == 'sales_2' else 3
                 transaction_price_per_unit = order.net_price / divisor
                 order.transaction_price_per_unit = self.custom_round_down(transaction_price_per_unit)
             else:
