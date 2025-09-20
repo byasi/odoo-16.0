@@ -103,7 +103,7 @@ class StockMove(models.Model):
             lot_quantity = 0.0
             for line in move.move_line_ids:
                 if line.mo_first_process_wt:
-                    lot_quantity = sum(line.mo_first_process_wt for line in move.move_line_ids)
+                    lot_quantity += line.mo_first_process_wt
             move.display_quantity = lot_quantity
 
     @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_purchase_cost')
@@ -112,17 +112,19 @@ class StockMove(models.Model):
             lot_cost = 0.0
             for line in move.move_line_ids:
                 if line.mo_purchase_cost:
-                    lot_cost = sum(line.mo_purchase_cost for line in move.move_line_ids)
+                    lot_cost += line.mo_purchase_cost
             move.total_purchase_cost = lot_cost
 
-    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_net_price')
+    @api.depends('move_line_ids', 'move_line_ids.lot_id', 'move_line_ids.mo_net_price', 'move_line_ids.mo_first_process_wt')
     def _compute_total_net_price(self):
         for move in self:
-            lot_net_price = 0.0
+            gtotal = 0.0
+            total_mfp = 0.0
             for line in move.move_line_ids:
-                if line.mo_net_price:
-                    lot_net_price = sum(line.mo_net_price for line in move.move_line_ids)
-            move.total_net_price = lot_net_price
+                if line.mo_net_price and line.mo_first_process_wt:
+                    gtotal += line.mo_first_process_wt * line.mo_net_price
+                    total_mfp += line.mo_first_process_wt
+            move.total_net_price = gtotal / total_mfp if total_mfp > 0 else 0.0
 
     @api.depends('move_line_ids.mo_original_subTotal')
     def _compute_original_subtotal(self):
