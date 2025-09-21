@@ -367,8 +367,8 @@ class SaleOrderLine(models.Model):
         currency_field='currency_id',
         store=True
     )
-    first_process_wt = fields.Float(string="First Process Wt", store=True)
-    manual_first_process = fields.Float(string="Manual First Process Wt", compute="_compute_manual_first_process", store=True)
+    qty = fields.Float(string="Qty", compute="_compute_qty_g", store=True)
+    first_process_wt = fields.Float(string="First Process Wt", compute="_compute_first_process_wt", store=True)
 
     price_unit = fields.Float(
         string="Unit Price",
@@ -389,6 +389,23 @@ class SaleOrderLine(models.Model):
         string="Subtotal",
         compute='_compute_amount',
         store=True, precompute=True)
+
+    @api.depends('gross_weight')
+    def _compute_first_process_wt(self):
+        for line in self:
+            line.first_process_wt = line.gross_weight if line.gross_weight else 0.0
+
+   
+    @api.depends('first_process_wt', 'order_id.transaction_unit', 'order_id.market_price_unit_input')
+    def _compute_qty_g(self):
+        for line in self:
+          if line.order_id.transaction_unit and line.order_id.market_price_unit_input:
+            unit_input_rate = line.order_id.market_price_unit_input.ratio
+            transaction_unit_rate = line.order_id.transaction_unit.ratio
+            qty_g = (unit_input_rate / transaction_unit_rate) * line.first_process_wt
+            line.qty = self.custom_round_down(qty_g)
+          else:
+            line.qty = 0.0
 
     @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'manual_quantity')
     def _compute_amount(self):
@@ -483,19 +500,6 @@ class SaleOrderLine(models.Model):
                 else:
                     line.rate = 0.0
 
-    @api.depends('move_ids.move_line_ids.lot_manual_first_process')
-    def _compute_manual_first_process(self):
-        for line in self:
-            if line.move_ids:
-                # Get the manual first process from the stock move lines
-                manual_first_process_values = line.move_ids.mapped('move_line_ids.lot_manual_first_process')
-                if manual_first_process_values:
-                    line.manual_first_process = sum(manual_first_process_values)
-                else:
-                    line.manual_first_process = 0.0
-            else:
-                line.manual_first_process = 0.0
-
     @api.depends('qty_delivered')
     def _compute_gross_weight(self):
         for line in self:
@@ -505,17 +509,29 @@ class SaleOrderLine(models.Model):
                 line.gross_weight = 0.0
 
     # gross×quality/100
-    @api.depends('manual_gross_weight', 'gross_weight', 'manual_item_quality', 'inventory_product_quality')
+    @api.depends('manual_gross_weight', 'gross_weight', 'manual_item_quality', 'inventory_product_quality', 'order_id.sales_method', 'qty')
     def _compute_net_weight(self):
         for line in self:
-            quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
-            if line.manual_gross_weight:
-                line.net_weight = line.manual_gross_weight * quality / 100
+            # For sales_2 method, set both manual_quantity and product_uom_qty to qty
+            if line.order_id.sales_method == 'sales_2':
+                line.manual_quantity = line.qty
+                line.product_uom_qty = line.qty
+                # Still compute net_weight for other purposes
+                quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                if line.manual_gross_weight:
+                    line.net_weight = line.manual_gross_weight * quality / 100
+                else:
+                    line.net_weight = line.gross_weight * quality / 100
             else:
-                line.net_weight = line.gross_weight * quality / 100
+                # Original logic for sales_1
+                quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                if line.manual_gross_weight:
+                    line.net_weight = line.manual_gross_weight * quality / 100
+                else:
+                    line.net_weight = line.gross_weight * quality / 100
 
-            # Update manual_quantity instead of directly changing quantity
-            line.manual_quantity = line.net_weight
+                # Update manual_quantity instead of directly changing quantity
+                line.manual_quantity = line.net_weight
 
     @api.depends('qty_delivered', 'product_id')
     def _compute_inventory_product_quality(self):
@@ -574,12 +590,17 @@ class SaleOrderLine(models.Model):
                 line.product_cost = 0.0
 
 
-    @api.depends('display_type', 'product_id', 'product_packaging_qty', 'gross_weight',  'inventory_product_quality')
+    @api.depends('display_type', 'product_id', 'product_packaging_qty', 'gross_weight',  'inventory_product_quality', 'order_id.sales_method', 'qty')
     def _compute_product_uom_qty(self):
         for line in self:
 
             if line.display_type:
                 line.product_uom_qty = 0.0
+                continue
+
+            # For sales_2 method, set product_uom_qty to qty
+            if line.order_id.sales_method == 'sales_2':
+                line.product_uom_qty = line.qty
                 continue
 
             if line.manual_gross_weight:

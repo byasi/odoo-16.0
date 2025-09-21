@@ -85,15 +85,8 @@
                     'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
                     }" />
-                    <field name="manual_product_quality" string="Manual Product Quality" attrs="{
-                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
-                    }" />
                     <field name="current_rate" string="Current Rate" attrs="{
                     'column_invisible': [('parent.state', 'not in', ['unfixed'])],
-                    'readonly': [('qty_delivered_method', '!=', 'manual')]
-                    }" />
-                    <field name="rate" string="Rate" attrs="{
-                    'column_invisible': [('parent.state', 'not in', ['sale', 'done', 'unfixed'])],
                     'readonly': [('qty_delivered_method', '!=', 'manual')]
                     }" />
                     <field name="current_price_unit" string="Current Price Unit" optional="show" attrs="{
