@@ -48,11 +48,11 @@ class SaleOrder(models.Model):
         compute="_compute_product_quality",
         store=True
     )
-    rate = fields.Float(string="Price Unit", compute="_compute_rate", digits=(16, 4), store=True)
+    rate = fields.Float(string="Price Unit", compute="_compute_rate", digits=(16, 5), store=True)
     product_cost = fields.Float(string="Product Cost", compute="_compute_product_cost", store=True)
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
-    current_rate = fields.Float(string="Current Rate", compute="_compute_current_rate", store=True)
+    current_rate = fields.Float(string="Current Rate", digits=(16, 5), compute="_compute_current_rate", store=True)
     selected_payment_ids = fields.Many2many(
         'account.payment',
         string="Customer Payment",
@@ -351,7 +351,7 @@ class SaleOrder(models.Model):
 
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
-    rate = fields.Float(string="Rate", compute="_compute_rate", digits=(16, 3), store=True)
+    rate = fields.Float(string="Rate", compute="_compute_rate", digits=(16, 5), store=True)
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
     manual_gross_weight = fields.Float(string="Manual Gross Weight", store=True)
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
@@ -374,7 +374,7 @@ class SaleOrderLine(models.Model):
         string="Unit Price",
         compute='_compute_price_unit',
         # digits='Product Price',
-        digits=(16, 3),
+        digits=(16, 5),
         store=True, readonly=False, required=True, precompute=True)
 
     current_price_unit = fields.Float(
@@ -487,7 +487,8 @@ class SaleOrderLine(models.Model):
                     quality = line.manual_product_quality if line.manual_product_quality else line.inventory_product_quality
                     if quality:
                         rate = (line.order_id.transaction_price_per_unit / line.order_id.x_factor) * quality
-                        line.rate = self.custom_round_down(rate)
+                        # line.rate = self.custom_round_down(rate)
+                        line.rate = rate
                     else:
                         line.rate = 0.0
                 else:
@@ -496,7 +497,8 @@ class SaleOrderLine(models.Model):
                 # Sales 1 method: use default calculation (net_price/31.1034768)
                 if line.order_id.net_price:
                     rate = line.order_id.net_price / 31.1034768
-                    line.rate = self.custom_round_down(rate)
+                    # line.rate = self.custom_round_down(rate)
+                    line.rate = rate
                 else:
                     line.rate = 0.0
 
