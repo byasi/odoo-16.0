@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='next_serial']" position="before">
                 <field name="total_original_subTotal" string="Original Purcase Cost" readonly="1"/>
-                <field name="total_net_price" string="Total Net Price" readonly="1"/>
+                <field name="total_net_price" string="Average Market Price" readonly="1"/>
             </xpath>
         </field>
     </record>

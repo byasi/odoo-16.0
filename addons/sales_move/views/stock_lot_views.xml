@@ -8,7 +8,7 @@
         <xpath expr="//field[@name='ref']" position="before">
             <!-- <field name="product_quality" readonly="1"/> -->
             <!-- <field name="first_process_wt" readonly="1"/> -->
-            <field name="lot_original_subTotal" string="Lot Original Subtotal" readonly="1"/>
+            <!-- <field name="lot_original_subTotal" string="Lot Original Subtotal" readonly="1"/> -->
         </xpath>
     </field>
 </record>
