@@ -946,7 +946,7 @@ class PurchaseOrderLine(models.Model):
         return
 
     gross_weight = fields.Float(string="Gross Weight")
-    first_process_wt = fields.Float(string="First Process Wt")
+    first_process_wt = fields.Float(string="Actual Process Weight")
     price = fields.Monetary(string="Market Price")
     second_process_wt = fields.Float(string="Second Process Wt")
     process_loss = fields.Float(string="Process Loss", compute="_compute_process_loss", store=True)

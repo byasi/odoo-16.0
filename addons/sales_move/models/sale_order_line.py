@@ -511,22 +511,24 @@ class SaleOrderLine(models.Model):
                 line.gross_weight = 0.0
 
     # gross×quality/100
-    @api.depends('manual_gross_weight', 'gross_weight', 'manual_item_quality', 'inventory_product_quality', 'order_id.sales_method', 'qty')
+    @api.depends('manual_gross_weight', 'gross_weight', 'manual_product_quality', 'inventory_product_quality', 'order_id.sales_method', 'qty')
     def _compute_net_weight(self):
         for line in self:
             # For sales_2 method, set both manual_quantity and product_uom_qty to qty
             if line.order_id.sales_method == 'sales_2':
                 line.manual_quantity = line.qty
-                line.product_uom_qty = line.qty
+                # Only update product_uom_qty on editable SO states to avoid creating new pickings
+                if line.order_id.state in ('draft', 'sent', 'unfixed'):
+                    line.product_uom_qty = line.qty
                 # Still compute net_weight for other purposes
-                quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                quality = line.manual_product_quality if line.manual_product_quality else line.inventory_product_quality
                 if line.manual_gross_weight:
                     line.net_weight = line.manual_gross_weight * quality / 100
                 else:
                     line.net_weight = line.gross_weight * quality / 100
             else:
                 # Original logic for sales_1
-                quality = line.manual_item_quality if line.manual_item_quality else line.inventory_product_quality
+                quality = line.manual_product_quality if line.manual_product_quality else line.inventory_product_quality
                 if line.manual_gross_weight:
                     line.net_weight = line.manual_gross_weight * quality / 100
                 else:
@@ -602,7 +604,10 @@ class SaleOrderLine(models.Model):
 
             # For sales_2 method, set product_uom_qty to qty
             if line.order_id.sales_method == 'sales_2':
-                line.product_uom_qty = line.qty
+                # Only update in editable SO states to avoid spawning new WH/OUT transfers
+                if line.order_id.state in ('draft', 'sent', 'unfixed'):
+                    line.product_uom_qty = line.qty
+                # Whether updated or not, skip the remaining default logic for sales_1
                 continue
 
             if line.manual_gross_weight:
