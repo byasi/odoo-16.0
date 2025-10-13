@@ -28,6 +28,8 @@
         'views/general_report_menu.xml',
         'report/general_report_pdf_template.xml',
         'report/general_report_pdf_action.xml',
+        'report/payment_voucher_template.xml',
+        'report/payment_voucher_action.xml',
     ],
     'assets': {
         'web.assets_backend': [

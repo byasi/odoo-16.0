@@ -68,6 +68,32 @@ class AccountPayment(models.Model):
         string='Currency',
         compute='_compute_currency_id', store=True, readonly=False, precompute=True,
         help="The payment's currency.")
+    
+    # Payment Voucher specific fields
+    voucher_reference = fields.Char(
+        string="Voucher Reference",
+        help="Additional reference for the payment voucher"
+    )
+    voucher_purpose = fields.Text(
+        string="Purpose of Payment",
+        help="Detailed description of the payment purpose"
+    )
+    authorized_by = fields.Many2one(
+        'res.users',
+        string="Authorized By",
+        default=lambda self: self.env.user,
+        help="User who authorized this payment"
+    )
+    prepared_by = fields.Many2one(
+        'res.users',
+        string="Prepared By",
+        default=lambda self: self.env.user,
+        help="User who prepared this payment voucher"
+    )
+    voucher_notes = fields.Text(
+        string="Voucher Notes",
+        help="Additional notes for the payment voucher"
+    )
 
     @api.depends('journal_id')
     def _compute_currency_id(self):
@@ -169,6 +195,10 @@ class AccountPayment(models.Model):
             )
         else:
             self.amount = amount_in_usd
+
+    def action_print_payment_voucher(self):
+        """Print payment voucher"""
+        return self.env.ref('sales_move.action_report_payment_voucher').report_action(self)
 
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
