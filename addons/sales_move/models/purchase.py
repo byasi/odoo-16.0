@@ -106,7 +106,7 @@ class PurchaseOrder(models.Model):
         compute='_compute_totals',
         store=True
     )
-   
+    product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
 
     def action_create_invoice(self):
         """ Override the bill creation to copy the Order Deadline as the Bill Date. """
@@ -145,6 +145,16 @@ class PurchaseOrder(models.Model):
             order.total_without_weights = total_without_weights
             order.total_without_weights_ugx = total_without_weights_ugx
             order.total_first_process = total_first_process
+            order.product_quality = total_first_process
+
+    @api.depends('order_line', 'order_line.product_quality')
+    def _compute_product_quality(self):
+        for order in self:
+            if order.order_line:
+                order.product_quality = sum(line.product_quality for line in order.order_line) / len(order.order_line)
+            else:
+                order.product_quality = 0.0
+    
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
