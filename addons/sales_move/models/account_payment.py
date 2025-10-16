@@ -199,6 +199,19 @@ class AccountPayment(models.Model):
     def action_print_payment_voucher(self):
         """Print payment voucher"""
         return self.env.ref('sales_move.action_report_payment_voucher').report_action(self)
+    
+    def _get_amount_in_words(self):
+        """Convert amount to words"""
+        try:
+            from num2words import num2words
+            amount = abs(self.amount)
+            currency_name = self.currency_id.name or 'Dollars'
+            amount_words = num2words(amount, lang='en').title()
+            return f"{amount_words} {currency_name}"
+        except ImportError:
+            return f"{self.amount} {self.currency_id.name or 'Dollars'}"
+        except:
+            return f"{self.amount} {self.currency_id.name or 'Dollars'}"
 
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'

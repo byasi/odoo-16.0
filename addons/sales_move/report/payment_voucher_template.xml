@@ -4,286 +4,155 @@
         <t t-call="web.external_layout">
             <t t-set="o" t-value="o.with_context(lang=lang)"/>
             <div class="page">
-                <!-- Header Section -->
-                <div class="row mb-4">
-                    <div class="col-6">
-                        <h2><strong>PAYMENT VOUCHER</strong></h2>
-                        <h4><strong>Voucher No: <span t-field="o.name"/></strong></h4>
+                <!-- Customer Copy Section -->
+                <div class="receipt-voucher-section" style="margin-bottom: 40px; padding: 20px; border: 1px solid #ddd;">
+                    <!-- Header -->
+                    <div class="text-center mb-4">
+                        <h2 style="font-weight: bold; margin-bottom: 10px;">RECEIPT VOUCHER</h2>
                     </div>
-                    <div class="col-6 text-end">
-                        <div class="row">
-                            <div class="col-12">
-                                <strong>Date: <span t-field="o.date"/></strong>
-                            </div>
+
+                    <!-- Amount and Date Row -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Amount: <span t-field="o.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                            </strong>
                         </div>
-                        <div class="row mt-2">
-                            <div class="col-12">
-                                <strong>Status: <span t-field="o.state" t-options="{'widget': 'badge'}"/></strong>
-                            </div>
+                        <div class="col-6 text-end">
+                            <strong>Date: <span t-field="o.date"/>
+                            </strong>
+                        </div>
+                    </div>
+
+                    <!-- Received From -->
+                    <div class="mb-3">
+                        <strong>Received from: </strong>
+                        <span t-if="o.partner_id">
+                            <span t-if="o.partner_id.title">Mr./Ms. </span>
+                            <span t-field="o.partner_id.name"/>
+                        </span>
+                        <span t-if="not o.partner_id">_________________________</span>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 2px; min-height: 15px;"></div>
+                    </div>
+
+                    <!-- Amount in Words -->
+                    <div class="mb-3">
+                        <strong>Sum of: </strong>
+                        <span t-esc="o._get_amount_in_words()"/>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 2px; min-height: 15px;"></div>
+                    </div>
+
+                    <!-- Purpose/Being -->
+                    <div class="mb-4">
+                        <strong>Being: </strong>
+                        <span t-if="o.voucher_purpose" t-field="o.voucher_purpose"/>
+                        <span t-if="o.ref and not o.voucher_purpose" t-field="o.ref"/>
+                        <span t-if="not o.voucher_purpose and not o.ref"></span>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 5px; min-height: 20px;"></div>
+                    </div>
+
+                    <!-- Signature Section -->
+                    <div class="row mt-4">
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>
+                                    <span t-field="o.create_uid.name"/>
+ Account</strong>
+                            </small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>Manager</strong>
+                            </small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>Receiver's Signature</strong>
+                            </small>
                         </div>
                     </div>
                 </div>
 
-                <!-- Company Information -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Company Information</strong></h5>
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Company:</strong> <span t-field="o.company_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Address:</strong> <span t-field="o.company_id.street"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>City:</strong> <span t-field="o.company_id.city"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Country:</strong> <span t-field="o.company_id.country_id.name"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Office Copy Section with Watermark -->
+                <div class="receipt-voucher-section office-copy" style="position: relative; padding: 20px; border: 1px solid #ddd;">
+                    <!-- Office Copy Watermark -->
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 48px; color: rgba(0,0,0,0.1); font-weight: bold; z-index: 1; pointer-events: none;">OFFICE COPY</div>
 
-                <!-- Payment Details -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Payment Details</strong></h5>
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Payment Type:</strong> 
-                                    <span t-if="o.payment_type == 'inbound'">Receive Money</span>
-                                    <span t-if="o.payment_type == 'outbound'">Send Money</span>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Payment Method:</strong> <span t-field="o.payment_method_line_id.name"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>Journal:</strong> <span t-field="o.journal_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Currency:</strong> <span t-field="o.currency_id.name"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>Amount:</strong> 
-                                    <span class="h4 text-primary">
-                                        <span t-field="o.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
-                                    </span>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Internal Transfer:</strong> 
-                                    <span t-if="o.is_internal_transfer">Yes</span>
-                                    <span t-if="not o.is_internal_transfer">No</span>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Header -->
+                    <div class="text-center mb-4" style="position: relative; z-index: 2;">
+                        <h2 style="font-weight: bold; margin-bottom: 10px;">RECEIPT VOUCHER</h2>
                     </div>
-                </div>
 
-                <!-- Partner Information -->
-                <div class="row mb-4" t-if="o.partner_id">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Partner Information</strong></h5>
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Partner Type:</strong> 
-                                    <span t-if="o.partner_type == 'customer'">Customer</span>
-                                    <span t-if="o.partner_type == 'supplier'">Vendor</span>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Name:</strong> <span t-field="o.partner_id.name"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>Address:</strong> <span t-field="o.partner_id.street"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>City:</strong> <span t-field="o.partner_id.city"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>Phone:</strong> <span t-field="o.partner_id.phone"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Email:</strong> <span t-field="o.partner_id.email"/>
-                                </div>
-                            </div>
+                    <!-- Amount and Date Row -->
+                    <div class="row mb-3" style="position: relative; z-index: 2;">
+                        <div class="col-6">
+                            <strong>Amount: <span t-field="o.amount" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                            </strong>
+                        </div>
+                        <div class="col-6 text-end">
+                            <strong>Date: <span t-field="o.date"/>
+                            </strong>
                         </div>
                     </div>
-                </div>
 
-                <!-- Bank Account Information -->
-                <div class="row mb-4" t-if="o.partner_bank_id">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Bank Account Information</strong></h5>
-                            <div class="row">
-                                <div class="col-6">
-                                    <strong>Bank:</strong> <span t-field="o.partner_bank_id.bank_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Account Number:</strong> <span t-field="o.partner_bank_id.acc_number"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2">
-                                <div class="col-6">
-                                    <strong>Account Holder:</strong> <span t-field="o.partner_bank_id.partner_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Currency:</strong> <span t-field="o.partner_bank_id.currency_id.name"/>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Received From -->
+                    <div class="mb-3" style="position: relative; z-index: 2;">
+                        <strong>Received from: </strong>
+                        <span t-if="o.partner_id">
+                            <span t-if="o.partner_id.title">Mr./Ms. </span>
+                            <span t-field="o.partner_id.name"/>
+                        </span>
+                        <span t-if="not o.partner_id">_________________________</span>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 2px; min-height: 15px;"></div>
                     </div>
-                </div>
 
-                <!-- Sales/Purchase Order Information -->
-                <div class="row mb-4" t-if="o.sales_order_id or o.purchase_order_id">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Order Information</strong></h5>
-                            <div class="row" t-if="o.sales_order_id">
-                                <div class="col-6">
-                                    <strong>Sales Order:</strong> <span t-field="o.sales_order_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Order Date:</strong> <span t-field="o.sales_order_id.date_order"/>
-                                </div>
-                            </div>
-                            <div class="row mt-2" t-if="o.purchase_order_id">
-                                <div class="col-6">
-                                    <strong>Purchase Order:</strong> <span t-field="o.purchase_order_id.name"/>
-                                </div>
-                                <div class="col-6">
-                                    <strong>Order Date:</strong> <span t-field="o.purchase_order_id.date_order"/>
-                                </div>
-                            </div>
-                        </div>
+                    <!-- Amount in Words -->
+                    <div class="mb-3" style="position: relative; z-index: 2;">
+                        <strong>Sum of: </strong>
+                        <span t-esc="o._get_amount_in_words()"/>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 2px; min-height: 15px;"></div>
                     </div>
-                </div>
 
-                <!-- Memo/Reference -->
-                <div class="row mb-4" t-if="o.ref">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Memo/Reference</strong></h5>
-                            <p><span t-field="o.ref"/></p>
-                        </div>
+                    <!-- Purpose/Being -->
+                    <div class="mb-4" style="position: relative; z-index: 2;">
+                        <strong>Being: </strong>
+                        <span t-if="o.voucher_purpose" t-field="o.voucher_purpose"/>
+                        <span t-if="o.ref and not o.voucher_purpose" t-field="o.ref"/>
+                        <span t-if="not o.voucher_purpose and not o.ref"></span>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 5px; min-height: 20px;"></div>
                     </div>
-                </div>
 
-                <!-- Voucher Reference -->
-                <div class="row mb-4" t-if="o.voucher_reference">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Voucher Reference</strong></h5>
-                            <p><span t-field="o.voucher_reference"/></p>
-                        </div>
+                    <!-- Journal Information (Office Copy Only) -->
+                    <div class="mb-4" style="position: relative; z-index: 2;">
+                        <strong>Journal: </strong>
+                        <span t-field="o.journal_id.name"/>
+                        <div style="border-bottom: 1px dotted #000; margin-top: 5px; min-height: 20px;"></div>
                     </div>
-                </div>
 
-                <!-- Purpose of Payment -->
-                <div class="row mb-4" t-if="o.voucher_purpose">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Purpose of Payment</strong></h5>
-                            <p><span t-field="o.voucher_purpose"/></p>
+                    <!-- Signature Section -->
+                    <div class="row mt-4" style="position: relative; z-index: 2;">
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>
+                                    <span t-field="o.create_uid.name"/>
+ Account</strong>
+                            </small>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Voucher Notes -->
-                <div class="row mb-4" t-if="o.voucher_notes">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Voucher Notes</strong></h5>
-                            <p><span t-field="o.voucher_notes"/></p>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>Manager</strong>
+                            </small>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Reconciled Invoices/Bills -->
-                <div class="row mb-4" t-if="o.reconciled_invoice_ids or o.reconciled_bill_ids">
-                    <div class="col-12">
-                        <div class="border p-3">
-                            <h5><strong>Reconciled Documents</strong></h5>
-                            <table class="table table-sm table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Document Type</th>
-                                        <th>Document Number</th>
-                                        <th>Date</th>
-                                        <th class="text-end">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <t t-foreach="o.reconciled_invoice_ids" t-as="invoice">
-                                        <tr>
-                                            <td>Invoice</td>
-                                            <td><span t-field="invoice.name"/></td>
-                                            <td><span t-field="invoice.invoice_date"/></td>
-                                            <td class="text-end">
-                                                <span t-field="invoice.amount_total" t-options="{'widget': 'monetary', 'display_currency': invoice.currency_id}"/>
-                                            </td>
-                                        </tr>
-                                    </t>
-                                    <t t-foreach="o.reconciled_bill_ids" t-as="bill">
-                                        <tr>
-                                            <td>Bill</td>
-                                            <td><span t-field="bill.name"/></td>
-                                            <td><span t-field="bill.invoice_date"/></td>
-                                            <td class="text-end">
-                                                <span t-field="bill.amount_total" t-options="{'widget': 'monetary', 'display_currency': bill.currency_id}"/>
-                                            </td>
-                                        </tr>
-                                    </t>
-                                </tbody>
-                            </table>
+                        <div class="col-4 text-center">
+                            <div style="border-bottom: 1px dotted #000; margin-bottom: 5px; min-height: 30px;"></div>
+                            <small>
+                                <strong>Receiver's Signature</strong>
+                            </small>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Signature Section -->
-                <div class="row mt-5">
-                    <div class="col-6">
-                        <div class="border-top pt-3">
-                            <strong>Prepared By:</strong>
-                            <div class="mt-3" style="height: 50px;"></div>
-                            <div class="text-center">
-                                <span t-field="o.prepared_by.name"/>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="border-top pt-3">
-                            <strong>Authorized By:</strong>
-                            <div class="mt-3" style="height: 50px;"></div>
-                            <div class="text-center">
-                                <span t-field="o.authorized_by.name"/>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="row mt-4">
-                    <div class="col-12 text-center">
-                        <small class="text-muted">
-                            This voucher was generated on <span t-esc="time.strftime('%Y-%m-%d %H:%M:%S')"/> 
-                            by <span t-field="o.company_id.name"/>
-                        </small>
                     </div>
                 </div>
             </div>
