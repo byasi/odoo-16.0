@@ -1,0 +1,12 @@
+<odoo>
+    <report
+        id="action_cashbook_report_pdf"
+        model="sales.move.cashbook.report.wizard"
+        string="Cashbook Report PDF"
+        report_type="qweb-pdf"
+        name="sales_move.cashbook_report_pdf_template"
+        file="sales_move.cashbook_report_pdf_template"
+        print_report_name="'Cashbook Report - %s' % (object.account_id.code)"
+    />
+</odoo>
+

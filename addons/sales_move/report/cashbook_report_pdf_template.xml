@@ -1,0 +1,78 @@
+<odoo>
+    <template id="cashbook_report_pdf_template">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <div class="page">
+                    <div class="oe_structure"/>
+                    <div class="row">
+                    <div class="col">
+                        <h2>Cash Book Report</h2>
+                        <p><strong>Accounts:</strong> 
+                            <t t-foreach="docs.account_ids" t-as="acc">
+                                <t t-esc="acc.code"/> - <t t-esc="acc.name"/><t t-if="not acc == docs.account_ids[-1]">, </t>
+                            </t>
+                        </p>
+                        <p><strong>Target Moves:</strong> <t t-esc="dict(docs._fields['target_move']._description_selection(docs.env)).get(docs.target_move, docs.target_move)"/></p>
+                        <p><strong>Start Date:</strong> <t t-esc="docs.date_from"/></p>
+                        <p><strong>End Date:</strong> <t t-esc="docs.date_to"/></p>
+                        <p><strong>Opening Balance:</strong> <t t-esc="format_decimal(docs.opening_balance, digits=[2])"/> 
+                            <t t-if="docs.account_ids">
+                                <t t-esc="docs.account_ids[0].currency_id.name or docs.account_ids[0].company_id.currency_id.name"/>
+                            </t>
+                        </p>
+                        <t t-if="docs.journal_ids">
+                            <p><strong>Journals:</strong> 
+                                <t t-foreach="docs.journal_ids" t-as="journal">
+                                    <t t-esc="journal.name"/><t t-if="not journal == docs.journal_ids[-1]">, </t>
+                                </t>
+                            </p>
+                        </t>
+                    </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center" style="width: 8%;">Date</th>
+                                        <th class="text-center" style="width: 12%;">Reference</th>
+                                        <th>Description</th>
+                                        <th class="text-right" style="width: 15%;">Debit</th>
+                                        <th class="text-right" style="width: 15%;">Credit</th>
+                                        <th class="text-right" style="width: 15%;">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="background-color: #f8f9fa;">
+                                        <td colspan="3"><strong>Opening Balance</strong></td>
+                                        <td class="text-right"><strong><t t-esc="format_decimal(docs.opening_balance, digits=[2])"/></strong></td>
+                                        <td class="text-right"><strong>0.00</strong></td>
+                                        <td class="text-right"><strong><t t-esc="format_decimal(docs.opening_balance, digits=[2])"/></strong></td>
+                                    </tr>
+                                    <t t-foreach="docs.line_ids" t-as="line">
+                                        <tr>
+                                            <td class="text-center"><t t-esc="line.date"/></td>
+                                            <td class="text-center"><t t-esc="line.reference or ''"/></td>
+                                            <td><t t-esc="line.description or ''"/></td>
+                                            <td class="text-right"><t t-esc="format_decimal(line.debit, digits=[2])"/></td>
+                                            <td class="text-right"><t t-esc="format_decimal(line.credit, digits=[2])"/></td>
+                                            <td class="text-right"><t t-esc="format_decimal(line.balance, digits=[2])"/></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <p style="text-align: right; font-size: 0.9em; color: #6c757d;">
+                                Printed on <t t-esc="context_timestamp(datetime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>
+

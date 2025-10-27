@@ -3,3 +3,5 @@ access_purchase_order_deductions,access.purchase.order.deductions,model_purchase
 access_sale_order_unfixedpricewizard,access.sale.order.unfixedpricewizard,model_sale_order_unfixedpricewizard,,1,1,1,1
 access_sales_move_general_report_wizard,access.sales.move.general.report.wizard,model_sales_move_general_report_wizard,,1,1,1,1
 access_sales_move_general_report_line,access.sales.move.general.report.line,model_sales_move_general_report_line,,1,1,1,1
+access_sales_move_cashbook_report_wizard,access.sales.move.cashbook.report.wizard,model_sales_move_cashbook_report_wizard,,1,1,1,1
+access_sales_move_cashbook_report_line,access.sales.move.cashbook.report.line,model_sales_move_cashbook_report_line,,1,1,1,1

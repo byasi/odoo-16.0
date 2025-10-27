@@ -1,0 +1,5 @@
+<odoo>
+    <menuitem id="menu_cashbook_report_root" name="Cashbook Report" parent="account.menu_finance_reports" sequence="50"/>
+    <menuitem id="menu_cashbook_report_wizard" name="Cashbook Report" parent="menu_cashbook_report_root" action="action_cashbook_report_wizard"/>
+</odoo>
+

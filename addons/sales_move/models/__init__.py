@@ -11,4 +11,5 @@ from .import sale_order_line
 from . import account_move
 from . import customer_stock_report
 from . import general_report_line
+from . import cashbook_report_line
 from . import stock_quant
