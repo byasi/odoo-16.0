@@ -3,6 +3,8 @@ from datetime import date, datetime
 import base64
 import io
 
+# TODO: Add foreign currency
+
 
 class CashbookReportWizard(models.TransientModel):
     _name = 'sales.move.cashbook.report.wizard'
@@ -24,6 +26,11 @@ class CashbookReportWizard(models.TransientModel):
         ('journal_and_partner', 'Journal & Partner')
     ], string='Sort by', required=True, default='date')
     
+    currency_id = fields.Many2one('res.currency', string='Currency', 
+                                  default=lambda self: self.env.company.currency_id,
+                                  required=True,
+                                  help='Select the currency to display amounts in the report')
+    
     account_ids = fields.Many2many('account.account', 'cashbook_account_rel', 'wizard_id', 'account_id',
                                      string='Accounts', required=True,
                                      default=lambda self: self.env['account.account'].search([('code', '=', '173')], limit=1) if self.env['account.account'].search([('code', '=', '173')], limit=1) else False,
@@ -35,12 +42,17 @@ class CashbookReportWizard(models.TransientModel):
     
     opening_balance = fields.Float('Opening Balance', readonly=True, compute='_compute_opening_balance')
     line_ids = fields.One2many('sales.move.cashbook.report.line', 'wizard_id', string='Report Lines')
+    
+    @api.depends('currency_id')
+    def _get_currency(self):
+        """Get currency for report templates"""
+        return self.currency_id or self.env.company.currency_id
 
-    @api.depends('account_ids', 'date_from', 'initial_balance', 'target_move')
+    @api.depends('account_ids', 'date_from', 'initial_balance', 'target_move', 'currency_id')
     def _compute_opening_balance(self):
         """Compute opening balance from the account before the start date"""
         for wizard in self:
-            if not wizard.account_ids or not wizard.date_from:
+            if not wizard.account_ids or not wizard.date_from or not wizard.currency_id:
                 wizard.opening_balance = 0.0
                 continue
             
@@ -49,26 +61,65 @@ class CashbookReportWizard(models.TransientModel):
                 continue
             
             account_ids = wizard.account_ids.ids
+            company = self.env.company
             
             # Calculate opening balance by summing all balance before start date
             query = """
-                SELECT COALESCE(SUM(balance), 0.0) as opening_balance
-                FROM account_move_line
-                WHERE account_id IN %s
-                AND date < %s
+                SELECT 
+                    aml.account_id,
+                    COALESCE(SUM(aml.balance), 0.0) as balance,
+                    aml.currency_id,
+                    aml.company_id
+                FROM account_move_line aml
+                WHERE aml.account_id IN %s
+                AND aml.date < %s
             """
             
             # Add state filter if only posted moves
             if wizard.target_move == 'posted':
                 query += """
-                    AND move_id IN (
+                    AND aml.move_id IN (
                         SELECT id FROM account_move WHERE state = 'posted'
                     )
                 """
             
+            query += """
+                GROUP BY aml.account_id, aml.currency_id, aml.company_id
+            """
+            
             self.env.cr.execute(query, (tuple(account_ids), wizard.date_from))
-            result = self.env.cr.fetchone()
-            wizard.opening_balance = result[0] if result else 0.0
+            results = self.env.cr.dictfetchall()
+            
+            total_balance = 0.0
+            company_currency = company.currency_id
+            
+            for row in results:
+                balance = row['balance']
+                
+                # If the line has a different currency, convert it
+                if row['currency_id']:
+                    line_currency = self.env['res.currency'].browse(row['currency_id'])
+                    if line_currency != company_currency:
+                        # Convert from line currency to company currency
+                        balance = line_currency._convert(
+                            balance,
+                            company_currency,
+                            company,
+                            wizard.date_from
+                        )
+                
+                total_balance += balance
+            
+            # Convert to selected currency
+            if wizard.currency_id != company_currency and total_balance != 0:
+                total_balance = company_currency._convert(
+                    total_balance,
+                    wizard.currency_id,
+                    company,
+                    wizard.date_from
+                )
+            
+            wizard.opening_balance = total_balance
 
     def action_generate_report(self):
         """Generate the cashbook report"""
@@ -102,12 +153,40 @@ class CashbookReportWizard(models.TransientModel):
 
         # Initialize running balance
         running_balance = self.opening_balance
+        company_currency = self.env.company.currency_id
+        
         # Process each move line
         for line in move_lines:
-            # Determine if this is a debit or credit
+            # Get the currency for this line
+            line_currency = line.currency_id or company_currency
+            
+            # Get amounts in company currency first
             debit = line.debit if line.debit > 0 else 0.0
             credit = line.credit if line.credit > 0 else 0.0
             amount = line.balance
+            
+            # Convert to selected currency if different
+            if line_currency != self.currency_id:
+                if debit > 0:
+                    debit = line_currency._convert(
+                        debit,
+                        self.currency_id,
+                        self.env.company,
+                        line.date
+                    )
+                if credit > 0:
+                    credit = line_currency._convert(
+                        credit,
+                        self.currency_id,
+                        self.env.company,
+                        line.date
+                    )
+                amount = line_currency._convert(
+                    amount,
+                    self.currency_id,
+                    self.env.company,
+                    line.date
+                )
             
             # Update running balance
             running_balance += amount
@@ -215,6 +294,10 @@ class CashbookReportWizard(models.TransientModel):
         worksheet.write(row, 1, self.date_to.strftime('%d/%m/%Y'))
         row += 1
         
+        worksheet.write(row, 0, 'Currency:', label_format)
+        worksheet.write(row, 1, self.currency_id.name)
+        row += 1
+        
         worksheet.write(row, 0, 'Opening Balance:', label_format)
         worksheet.write(row, 1, self.opening_balance, currency_format)
         row += 1
@@ -231,6 +314,11 @@ class CashbookReportWizard(models.TransientModel):
 
         # Write column headers
         headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance']
+        # Add optional columns if sorting by journal
+        if self.sort_selection == 'journal_and_partner':
+            headers.insert(2, 'Journal')
+            headers.insert(3, 'Partner')
+        
         for col, header in enumerate(headers):
             worksheet.write(row, col, header, header_format)
             worksheet.set_column(col, col, 15)  # Set column width
@@ -238,23 +326,37 @@ class CashbookReportWizard(models.TransientModel):
         row += 1
 
         # Write opening balance row
+        col_offset = 2 if self.sort_selection == 'journal_and_partner' else 0
         worksheet.write(row, 0, 'Opening Balance', border_format)
-        worksheet.write(row, 2, 'Opening Balance', border_format)
-        worksheet.write(row, 4, self.opening_balance, currency_format)
-        worksheet.write(row, 5, self.opening_balance, currency_format)
-        
-        worksheet.write(row, 3, 0, currency_format)
+        worksheet.write(row, 1 + col_offset, '', border_format)
+        worksheet.write(row, 2 + col_offset, 'Opening Balance', border_format)
+        worksheet.write(row, 3 + col_offset, 0, currency_format)
+        worksheet.write(row, 4 + col_offset, self.opening_balance, currency_format)
+        worksheet.write(row, 5 + col_offset, self.opening_balance, currency_format)
         row += 1
 
         # Write transaction lines
-        running_balance = self.opening_balance
         for line in self.line_ids:
-            worksheet.write(row, 0, line.date, date_format)
-            worksheet.write(row, 1, line.reference or '', border_format)
-            worksheet.write(row, 2, line.description or '', border_format)
-            worksheet.write(row, 3, line.debit, currency_format)
-            worksheet.write(row, 4, line.credit, currency_format)
-            worksheet.write(row, 5, line.balance, currency_format)
+            col = 0
+            worksheet.write(row, col, line.date, date_format)
+            col += 1
+            worksheet.write(row, col, line.reference or '', border_format)
+            col += 1
+            
+            # Add journal and partner if sorting by journal
+            if self.sort_selection == 'journal_and_partner':
+                worksheet.write(row, col, line.journal_id.name if line.journal_id else '', border_format)
+                col += 1
+                worksheet.write(row, col, line.partner_id.name if line.partner_id else '', border_format)
+                col += 1
+            
+            worksheet.write(row, col, line.description or '', border_format)
+            col += 1
+            worksheet.write(row, col, line.debit, currency_format)
+            col += 1
+            worksheet.write(row, col, line.credit, currency_format)
+            col += 1
+            worksheet.write(row, col, line.balance, currency_format)
             row += 1
 
         # Close workbook

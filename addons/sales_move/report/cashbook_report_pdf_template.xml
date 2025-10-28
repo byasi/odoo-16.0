@@ -15,11 +15,8 @@
                         <p><strong>Target Moves:</strong> <t t-esc="dict(docs._fields['target_move']._description_selection(docs.env)).get(docs.target_move, docs.target_move)"/></p>
                         <p><strong>Start Date:</strong> <t t-esc="docs.date_from"/></p>
                         <p><strong>End Date:</strong> <t t-esc="docs.date_to"/></p>
-                        <p><strong>Opening Balance:</strong> <t t-esc="format_decimal(docs.opening_balance, digits=[2])"/> 
-                            <t t-if="docs.account_ids">
-                                <t t-esc="docs.account_ids[0].currency_id.name or docs.account_ids[0].company_id.currency_id.name"/>
-                            </t>
-                        </p>
+                        <p><strong>Currency:</strong> <t t-esc="docs.currency_id.name"/></p>
+                        <p><strong>Opening Balance:</strong> <t t-esc="format_decimal(docs.opening_balance, digits=[2])"/> <t t-esc="docs.currency_id.name"/></p>
                         <t t-if="docs.journal_ids">
                             <p><strong>Journals:</strong> 
                                 <t t-foreach="docs.journal_ids" t-as="journal">
