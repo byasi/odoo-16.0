@@ -39,7 +39,7 @@ class CashbookReportWizard(models.TransientModel):
     journal_ids = fields.Many2many('account.journal', 'cashbook_journal_rel', 'wizard_id', 'journal_id',
                                      string='Journals',
                                      domain=[])
-    
+
     opening_balance = fields.Float('Opening Balance', readonly=True, compute='_compute_opening_balance')
     line_ids = fields.One2many('sales.move.cashbook.report.line', 'wizard_id', string='Report Lines')
     
@@ -63,18 +63,19 @@ class CashbookReportWizard(models.TransientModel):
             account_ids = wizard.account_ids.ids
             company = self.env.company
             
-            # Calculate opening balance by summing all balance before start date
+            # Calculate opening balance by summing all amount_currency before start date
+            # Using amount_currency to match the report lines calculation
+            # When amount_currency is NULL (company currency lines), use balance instead
             query = """
                 SELECT 
                     aml.account_id,
-                    COALESCE(SUM(aml.balance), 0.0) as balance,
+                    COALESCE(SUM(COALESCE(aml.amount_currency, aml.balance)), 0.0) as balance,
                     aml.currency_id,
                     aml.company_id
                 FROM account_move_line aml
                 WHERE aml.account_id IN %s
                 AND aml.date < %s
             """
-            
             # Add state filter if only posted moves
             if wizard.target_move == 'posted':
                 query += """
@@ -160,33 +161,9 @@ class CashbookReportWizard(models.TransientModel):
             # Get the currency for this line
             line_currency = line.currency_id or company_currency
             
-            # Get amounts in company currency first
-            debit = line.debit if line.debit > 0 else 0.0
-            credit = line.credit if line.credit > 0 else 0.0
-            amount = line.balance
-            
-            # Convert to selected currency if different
-            if line_currency != self.currency_id:
-                if debit > 0:
-                    debit = line_currency._convert(
-                        debit,
-                        self.currency_id,
-                        self.env.company,
-                        line.date
-                    )
-                if credit > 0:
-                    credit = line_currency._convert(
-                        credit,
-                        self.currency_id,
-                        self.env.company,
-                        line.date
-                    )
-                amount = line_currency._convert(
-                    amount,
-                    self.currency_id,
-                    self.env.company,
-                    line.date
-                )
+            # Use amount_currency directly when available (as requested)
+            # If not available, fall back to balance.
+            amount = line.amount_currency if line.amount_currency else line.balance
             
             # Update running balance
             running_balance += amount
@@ -202,8 +179,7 @@ class CashbookReportWizard(models.TransientModel):
                 'description': description,
                 'partner_id': line.partner_id.id,
                 'journal_id': line.journal_id.id,
-                'debit': debit,
-                'credit': credit,
+                'amount': amount,
                 'balance': running_balance,
             })
         
@@ -313,7 +289,7 @@ class CashbookReportWizard(models.TransientModel):
         row += 1
 
         # Write column headers
-        headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance']
+        headers = ['Date', 'Reference', 'Description', 'Amount', 'Balance']
         # Add optional columns if sorting by journal
         if self.sort_selection == 'journal_and_partner':
             headers.insert(2, 'Journal')
@@ -332,7 +308,6 @@ class CashbookReportWizard(models.TransientModel):
         worksheet.write(row, 2 + col_offset, 'Opening Balance', border_format)
         worksheet.write(row, 3 + col_offset, 0, currency_format)
         worksheet.write(row, 4 + col_offset, self.opening_balance, currency_format)
-        worksheet.write(row, 5 + col_offset, self.opening_balance, currency_format)
         row += 1
 
         # Write transaction lines
@@ -352,9 +327,7 @@ class CashbookReportWizard(models.TransientModel):
             
             worksheet.write(row, col, line.description or '', border_format)
             col += 1
-            worksheet.write(row, col, line.debit, currency_format)
-            col += 1
-            worksheet.write(row, col, line.credit, currency_format)
+            worksheet.write(row, col, line.amount, currency_format)
             col += 1
             worksheet.write(row, col, line.balance, currency_format)
             row += 1

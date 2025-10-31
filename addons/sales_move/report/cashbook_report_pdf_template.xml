@@ -34,15 +34,13 @@
                                         <th class="text-center" style="width: 8%;">Date</th>
                                         <th class="text-center" style="width: 12%;">Reference</th>
                                         <th>Description</th>
-                                        <th class="text-right" style="width: 15%;">Debit</th>
-                                        <th class="text-right" style="width: 15%;">Credit</th>
+                                        <th class="text-right" style="width: 15%;">Amount</th>
                                         <th class="text-right" style="width: 15%;">Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr style="background-color: #f8f9fa;">
                                         <td colspan="3"><strong>Opening Balance</strong></td>
-                                        <td class="text-right"><strong><t t-esc="format_decimal(docs.opening_balance, digits=[2])"/></strong></td>
                                         <td class="text-right"><strong>0.00</strong></td>
                                         <td class="text-right"><strong><t t-esc="format_decimal(docs.opening_balance, digits=[2])"/></strong></td>
                                     </tr>
@@ -51,8 +49,7 @@
                                             <td class="text-center"><t t-esc="line.date"/></td>
                                             <td class="text-center"><t t-esc="line.reference or ''"/></td>
                                             <td><t t-esc="line.description or ''"/></td>
-                                            <td class="text-right"><t t-esc="format_decimal(line.debit, digits=[2])"/></td>
-                                            <td class="text-right"><t t-esc="format_decimal(line.credit, digits=[2])"/></td>
+                                            <td class="text-right"><t t-esc="format_decimal(line.amount, digits=[2])"/></td>
                                             <td class="text-right"><t t-esc="format_decimal(line.balance, digits=[2])"/></td>
                                         </tr>
                                     </t>
