@@ -109,7 +109,7 @@ class CashbookReportWizard(models.TransientModel):
                             wizard.date_from
                         )
                 
-                total_balance += balance
+                total_balance -= balance
             
             # Convert to selected currency
             if wizard.currency_id != company_currency and total_balance != 0:
@@ -155,22 +155,22 @@ class CashbookReportWizard(models.TransientModel):
         # Initialize running balance
         running_balance = self.opening_balance
         company_currency = self.env.company.currency_id
-        
+
         # Process each move line
         for line in move_lines:
             # Get the currency for this line
             line_currency = line.currency_id or company_currency
-            
             # Use amount_currency directly when available (as requested)
             # If not available, fall back to balance.
-            amount = line.amount_currency if line.amount_currency else line.balance
-            
-            # Update running balance
-            running_balance += amount
-            
+            # Make amount negative so it deducts when added to running balance
+            amount = (line.amount_currency if line.amount_currency else line.balance)
+
+            # Update running balance by adding (amount is already negative)
+            running_balance -= amount
+
             # Get description (from move or line)
             description = line.name or line.move_id.ref or line.move_id.name or ''
-            
+
             # Create report line
             self.env['sales.move.cashbook.report.line'].create({
                 'wizard_id': self.id,
