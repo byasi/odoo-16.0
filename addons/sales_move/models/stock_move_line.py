@@ -284,6 +284,30 @@ class StockMoveLine(models.Model):
             }
         }
     
+    def force_recompute_original_subtotal(self):
+        """
+        Force recomputation of mo_original_subTotal for all stock move lines.
+        This method ensures that mo_original_subTotal is updated from lot names or stock moves.
+        Similar to force_recompute_lot_values but specifically focused on original subtotal.
+        """
+        for line in self:
+            if line.lot_id and line.lot_id.name:
+                # Try to find a matching line with the same lot name that has lot_original_subTotal
+                matching_line = self.search([
+                    ('lot_id.name', '=', line.lot_id.name),
+                    ('lot_original_subTotal', '!=', False),
+                    ('id', '!=', line.id)
+                ], order='create_date desc', limit=1)
+                
+                if matching_line and matching_line.lot_original_subTotal:
+                    line.mo_original_subTotal = matching_line.lot_original_subTotal
+                else:
+                    # If no matching line found, get from the stock move
+                    line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
+            else:
+                # If no lot is assigned, get from the stock move
+                line.mo_original_subTotal = line.move_id.original_subTotal or 0.0
+    
     @api.depends('move_id.product_uom_qty', 'mo_first_process_wt', 'move_id.picking_type_id')
     def _compute_qty_done(self):
         if self.env.context.get('skip_fetch_lot_values'):

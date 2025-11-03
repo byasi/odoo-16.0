@@ -135,15 +135,15 @@ class CashbookReportWizard(models.TransientModel):
             ('date', '>=', self.date_from),
             ('date', '<=', self.date_to)
         ]
-        
+
         # Add state filter if only posted moves
         if self.target_move == 'posted':
             domain.append(('move_id.state', '=', 'posted'))
-        
+
         # Add journal filter if provided
         if self.journal_ids:
             domain.append(('move_id.journal_id', 'in', self.journal_ids.ids))
-        
+
         # Determine sort order
         order_by = 'date, id'
         if self.sort_selection == 'journal_and_partner':

@@ -648,28 +648,34 @@ class PurchaseOrder(models.Model):
                 if purchase_line and purchase_line.current_subTotal:
                     move.purchase_cost = purchase_line.current_subTotal
                     # Trigger recomputation of total_purchase_cost
-                    move._compute_total_purchase_cost()
+                    if hasattr(move, '_compute_total_purchase_cost'):
+                        move._compute_total_purchase_cost()
                 # Update net_price from purchase line
                 if purchase_line and purchase_line.net_price:
                     move.net_price = purchase_line.net_price
                     # Trigger recomputation of total_net_price
-                    move._compute_total_net_price()
+                    if hasattr(move, '_compute_total_net_price'):
+                        move._compute_total_net_price()
             
             # Step 2: Update stock move lines
             stock_move_lines = self.env['stock.move.line'].search([
                 ('move_id', 'in', stock_moves.ids)
             ])
             for line in stock_move_lines:
-                line._compute_lot_purchase_cost()
-                line._fetch_lot_values()
+                if hasattr(line, '_compute_lot_purchase_cost'):
+                    line._compute_lot_purchase_cost()
+                if hasattr(line, '_fetch_lot_values'):
+                    line._fetch_lot_values()
             
             # Step 3: Update MRP productions that use these stock moves
             mrp_productions = self.env['mrp.production'].search([
                 ('move_raw_ids', 'in', stock_moves.ids)
             ])
             for production in mrp_productions:
-                production._compute_mrp_purchase_cost()
-                production._compute_mrp_net_price()
+                if hasattr(production, '_compute_mrp_purchase_cost'):
+                    production._compute_mrp_purchase_cost()
+                if hasattr(production, '_compute_mrp_net_price'):
+                    production._compute_mrp_net_price()
                 # The mo_original_subTotal will be automatically computed via @api.depends
             
             # Step 4: Update stock move lines in MRP productions
@@ -677,32 +683,41 @@ class PurchaseOrder(models.Model):
                 ('move_id.production_id', 'in', mrp_productions.ids)
             ])
             for line in mrp_move_lines:
-                line._fetch_lot_values()
-                line._compute_product_quantity()
+                if hasattr(line, '_fetch_lot_values'):
+                    line._fetch_lot_values()
+                if hasattr(line, '_compute_product_quantity'):
+                    line._compute_product_quantity()
             
             # Step 5: Force recomputation of all stock move lines that might be affected
             all_affected_move_lines = self.env['stock.move.line'].search([
                 ('lot_id', '!=', False)
             ])
-            all_affected_move_lines.force_recompute_lot_values()
-            all_affected_move_lines.update_mo_purchase_cost_from_lots()
-            all_affected_move_lines.force_recompute_original_subtotal()
+            # Only call methods if they exist to avoid AttributeError
+            if hasattr(all_affected_move_lines, 'force_recompute_lot_values'):
+                all_affected_move_lines.force_recompute_lot_values()
+            if hasattr(all_affected_move_lines, 'update_mo_purchase_cost_from_lots'):
+                all_affected_move_lines.update_mo_purchase_cost_from_lots()
+            if hasattr(all_affected_move_lines, 'force_recompute_original_subtotal'):
+                all_affected_move_lines.force_recompute_original_subtotal()
             
             # Step 5.5: Force recomputation of all MRP productions
             all_mrp_productions = self.env['mrp.production'].search([])
-            all_mrp_productions.force_recompute_original_subtotal()
+            if hasattr(all_mrp_productions, 'force_recompute_original_subtotal'):
+                all_mrp_productions.force_recompute_original_subtotal()
             
             # Step 6: Update sales order lines that reference these stock moves
             sale_order_lines = self.env['sale.order.line'].search([
                 ('move_ids', 'in', stock_moves.ids)
             ])
             for line in sale_order_lines:
-                line._compute_product_cost()
+                if hasattr(line, '_compute_product_cost'):
+                    line._compute_product_cost()
             
             # Step 7: Update sales orders
             sale_orders = sale_order_lines.mapped('order_id')
             for sale_order in sale_orders:
-                sale_order._compute_product_cost()
+                if hasattr(sale_order, '_compute_product_cost'):
+                    sale_order._compute_product_cost()
         
         return {
             'type': 'ir.actions.client',
