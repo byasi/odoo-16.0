@@ -66,6 +66,8 @@ class CashbookReportWizard(models.TransientModel):
             # Calculate opening balance by summing all amount_currency before start date
             # Using amount_currency to match the report lines calculation
             # When amount_currency is NULL (company currency lines), use balance instead
+            # Note: amount_currency can be positive (debit/inflow) or negative (credit/outflow)
+            # For cash accounts, we sum all amount_currency to get the net balance
             query = """
                 SELECT 
                     aml.account_id,
@@ -108,9 +110,11 @@ class CashbookReportWizard(models.TransientModel):
                             company,
                             wizard.date_from
                         )
-                
-                total_balance -= balance
-            
+
+                # Add the balance (not subtract) - amount_currency already has correct sign
+                # Positive = money coming in, Negative = money going out
+                total_balance += balance
+
             # Convert to selected currency
             if wizard.currency_id != company_currency and total_balance != 0:
                 total_balance = company_currency._convert(
@@ -162,11 +166,37 @@ class CashbookReportWizard(models.TransientModel):
             line_currency = line.currency_id or company_currency
             # Use amount_currency directly when available (as requested)
             # If not available, fall back to balance.
-            # Make amount negative so it deducts when added to running balance
+            # amount_currency already has the correct sign (positive = inflow, negative = outflow)
             amount = (line.amount_currency if line.amount_currency else line.balance)
+            
+            # If line currency matches selected currency, use exact amount without conversion
+            if line_currency == self.currency_id:
+                # No conversion needed - use the exact amount to avoid rounding errors
+                pass
+            else:
+                # Need to convert to selected currency
+                if line_currency != company_currency:
+                    # First convert from line currency to company currency
+                    amount = line_currency._convert(
+                        amount,
+                        company_currency,
+                        self.env.company,
+                        line.date
+                    )
+                
+                # Then convert from company currency to selected currency if needed
+                if self.currency_id != company_currency and amount != 0:
+                    amount = company_currency._convert(
+                        amount,
+                        self.currency_id,
+                        self.env.company,
+                        line.date
+                    )
 
-            # Update running balance by adding (amount is already negative)
-            running_balance -= amount
+            # Update running balance by adding the amount
+            # When amount is negative (outflow), adding it will subtract from balance
+            # When amount is positive (inflow), adding it will add to balance
+            running_balance += amount
 
             # Get description (from move or line)
             description = line.name or line.move_id.ref or line.move_id.name or ''
