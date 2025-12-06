@@ -7,6 +7,43 @@ from odoo.tools.misc import OrderedSet
 
 class StockMove(models.Model):
     _inherit = 'stock.move'
+    
+    def _get_price_unit(self):
+        """
+        Override to use product_cost from stock.move.line when available for outgoing moves.
+        This ensures the stock delivery accounting entry uses the actual cost from manufacturing orders.
+        
+        The cost is calculated from move lines: sum(product_cost from all move lines) / quantity_done
+        This matches the calculation used in the invoice COGS to ensure reconciliation.
+        """
+        # First check if this is an outgoing move with custom cost from move lines
+        if (self._is_out() 
+            and self.quantity_done > 0
+            and self.move_line_ids):
+            
+            # Get total cost from all move lines (product_cost comes from manufacturing order)
+            total_cost_from_lines = sum(self.move_line_ids.mapped('product_cost'))
+            
+            if total_cost_from_lines and not float_is_zero(total_cost_from_lines, precision_rounding=self.product_id.uom_id.rounding):
+                # Get quantity done in product UOM (the actual quantity delivered)
+                quantity_done_in_product_uom = self.product_uom._compute_quantity(
+                    self.quantity_done, self.product_id.uom_id
+                )
+                
+                if not float_is_zero(quantity_done_in_product_uom, precision_rounding=self.product_id.uom_id.rounding):
+                    # Calculate cost per unit: total_cost_from_lines / quantity_done
+                    # This gives us the cost per unit in product UOM
+                    cost_per_unit_product_uom = total_cost_from_lines / quantity_done_in_product_uom
+                    
+                    # Convert to move's UOM for return
+                    cost_per_unit_move_uom = self.product_id.uom_id._compute_price(
+                        cost_per_unit_product_uom, self.product_uom
+                    )
+                    
+                    return cost_per_unit_move_uom
+        
+        # Fall back to default calculation
+        return super(StockMove, self)._get_price_unit()
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
