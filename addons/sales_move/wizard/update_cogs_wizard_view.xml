@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_update_cogs_wizard_form" model="ir.ui.view">
+        <field name="name">update.cogs.wizard.form</field>
+        <field name="model">update.cogs.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Update COGS and Stock Interim Entries">
+                <sheet>
+                    <group>
+                        <field name="message" widget="text"/>
+                    </group>
+                    <group string="Update Options">
+                        <field name="update_svl"/>
+                        <field name="update_delivery_entries"/>
+                        <field name="update_invoice_cogs"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Update Entries" name="action_update_entries" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_update_cogs_wizard" model="ir.actions.act_window">
+        <field name="name">Update COGS Entries</field>
+        <field name="res_model">update.cogs.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_update_cogs_wizard"
+              name="Update COGS Entries"
+              parent="account.menu_account_config"
+              action="action_update_cogs_wizard"
+              sequence="100"/>
+</odoo>
+

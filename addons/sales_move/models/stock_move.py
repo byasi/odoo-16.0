@@ -44,6 +44,70 @@ class StockMove(models.Model):
         
         # Fall back to default calculation
         return super(StockMove, self)._get_price_unit()
+    
+    def _create_out_svl(self, forced_quantity=None):
+        """
+        Override to use product_cost from move lines when creating stock valuation layers.
+        This ensures the SVL stores the correct custom cost for later use in accounting entries.
+        """
+        # First try to use custom cost from move lines
+        svl_vals_list = []
+        for move in self:
+            move = move.with_company(move.company_id)
+            valued_move_lines = move._get_out_move_lines()
+            valued_quantity = 0
+            for valued_move_line in valued_move_lines:
+                valued_quantity += valued_move_line.product_uom_id._compute_quantity(
+                    valued_move_line.qty_done, move.product_id.uom_id
+                )
+            
+            if float_is_zero(forced_quantity or valued_quantity, precision_rounding=move.product_id.uom_id.rounding):
+                continue
+            
+            quantity = forced_quantity or valued_quantity
+            
+            # Get custom cost from move lines
+            move_line_costs = move.move_line_ids.mapped('product_cost')
+            total_move_cost = sum(move_line_costs) if move_line_costs else 0.0
+            
+            # Calculate custom unit cost if we have move lines with product_cost
+            custom_unit_cost = None
+            if (move._is_out() 
+                and total_move_cost 
+                and not float_is_zero(total_move_cost, precision_rounding=move.product_id.uom_id.rounding)
+                and not float_is_zero(quantity, precision_rounding=move.product_id.uom_id.rounding)):
+                # Calculate cost per unit: total_move_cost / quantity
+                quantity_in_product_uom = move.product_uom._compute_quantity(
+                    quantity, move.product_id.uom_id
+                )
+                if not float_is_zero(quantity_in_product_uom, precision_rounding=move.product_id.uom_id.rounding):
+                    custom_unit_cost = total_move_cost / quantity_in_product_uom
+            
+            # Use default method but override unit_cost if we have custom cost
+            svl_vals = move.product_id._prepare_out_svl_vals(quantity, move.company_id)
+            
+            # Override with custom cost if available
+            if custom_unit_cost is not None:
+                currency = move.company_id.currency_id
+                svl_vals['unit_cost'] = custom_unit_cost
+                # Recalculate value with custom cost
+                # Note: _prepare_out_svl_vals already makes quantity negative, so we use abs
+                # The value should be negative for out moves
+                abs_quantity = abs(svl_vals.get('quantity', quantity))
+                svl_vals['value'] = currency.round(-abs_quantity * custom_unit_cost)
+            
+            svl_vals.update(move._prepare_common_svl_vals())
+            if forced_quantity:
+                svl_vals['description'] = 'Correction of %s (modification of past move)' % (move.picking_id.name or move.name)
+            svl_vals['description'] += svl_vals.pop('rounding_adjustment', '')
+            svl_vals_list.append(svl_vals)
+        
+        if svl_vals_list:
+            return self.env['stock.valuation.layer'].sudo().create(svl_vals_list)
+        
+        # Fall back to default if no custom cost
+        return super(StockMove, self)._create_out_svl(forced_quantity=forced_quantity)
+    
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100

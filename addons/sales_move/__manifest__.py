@@ -24,6 +24,7 @@
         'views/sale_order_views.xml',
         'views/account_move_views.xml',
         'wizard/unfixed_price_view.xml',
+        'wizard/update_cogs_wizard_view.xml',
         'views/general_report_wizard_view.xml',
         'views/general_report_menu.xml',
         'views/cashbook_report_wizard_view.xml',
