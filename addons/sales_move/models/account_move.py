@@ -79,6 +79,11 @@ class AccountMoveLine(models.Model):
         store=True,
         currency_field='currency_id'
     )
+    
+    product_cost = fields.Float(
+        string='Product Cost',
+        help='Product cost from sale order line, used for COGS calculation'
+    )
 
     @api.depends('price_subtotal', 'move_id.payment_id.amount')
     def _compute_unfixed_balance(self):
@@ -93,26 +98,56 @@ class AccountMoveLine(models.Model):
 
     def _stock_account_get_anglo_saxon_price_unit(self):
         """
-        Override to use product_cost from stock.move.line instead of default Odoo calculation.
+        Override to use product_cost from sale.order.line (passed to invoice line) for COGS calculation.
         
-        ORIGINAL ODOO COGS CALCULATION:
-        The default Odoo method uses product._compute_average_price() which:
-        1. Gets stock valuation layers (SVL) from stock moves
-        2. Consumes SVLs based on FIFO/AVCO cost method
-        3. Uses the cost that was stored in SVL when stock was delivered
-        4. Falls back to product.standard_price if not enough SVLs
+        STRATEGY:
+        1. First try: Use product_cost from invoice line (comes from sale.order.line.product_cost)
+        2. Second try: Calculate from stock moves using custom cost (fallback)
+        3. Final fallback: Use default Odoo calculation
         
-        OUR CUSTOM CALCULATION:
-        We use product_cost from stock.move.line which comes from manufacturing orders.
-        This gives us the actual cost per lot that was manufactured, ensuring:
-        - Stock delivery entry uses: sum(product_cost from move lines) / quantity_done
-        - Invoice COGS entry uses: same calculation
-        - Both entries reconcile automatically in Stock Interim account
+        This ensures consistency:
+        - Sale order line has product_cost computed from stock move lines
+        - Invoice line receives this product_cost
+        - COGS uses this same product_cost for Stock Interim account
         """
         self.ensure_one()
         # If no product, return default price unit
         if not self.product_id:
             return super(AccountMoveLine, self)._stock_account_get_anglo_saxon_price_unit()
+        
+        # STRATEGY 1: Use product_cost from invoice line (from sale order line)
+        # This is the most direct and reliable source
+        so_line = self.sale_line_ids and self.sale_line_ids[-1] or False
+        if (so_line 
+            and self.product_cost 
+            and not float_is_zero(self.product_cost, precision_rounding=self.product_id.uom_id.rounding)
+            and so_line.qty_delivered > 0):
+            
+            # Get quantity to invoice in product UOM
+            qty_to_invoice = self.product_uom_id._compute_quantity(
+                self.quantity, self.product_id.uom_id
+            )
+            
+            # Handle refunds
+            if self.move_id.move_type == 'out_refund':
+                down_payment = self.move_id.invoice_line_ids.filtered(
+                    lambda line: any(line.sale_line_ids.mapped('is_downpayment'))
+                )
+                if not down_payment:
+                    qty_to_invoice = -qty_to_invoice
+            
+            if not float_is_zero(qty_to_invoice, precision_rounding=self.product_id.uom_id.rounding):
+                # product_cost in sale order line is total cost for all delivered items
+                # Calculate cost per unit: total product_cost / quantity delivered
+                cost_per_unit = self.product_cost / so_line.qty_delivered
+                
+                # Convert to invoice line's UOM
+                price_unit = self.product_id.uom_id.with_company(self.company_id)._compute_price(
+                    cost_per_unit, self.product_uom_id
+                )
+                return price_unit
+        
+        # STRATEGY 2: Calculate from stock moves (fallback if product_cost not available)
         # Get the sale order line from the invoice line
         so_line = self.sale_line_ids and self.sale_line_ids[-1] or False
         if not so_line:

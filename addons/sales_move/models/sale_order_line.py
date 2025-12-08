@@ -644,6 +644,7 @@ class SaleOrderLine(models.Model):
         res.update({
             'manual_quantity_so': self.manual_quantity,
             'unfixed_balance': self.unfixed_balance,
+            'product_cost': self.product_cost,  # Pass product_cost from sale order line to invoice line
         })
         return res
 
