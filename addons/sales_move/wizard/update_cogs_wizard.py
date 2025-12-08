@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, MissingError
 from odoo.tools import float_is_zero
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class UpdateCogsWizard(models.TransientModel):
@@ -43,13 +46,14 @@ class UpdateCogsWizard(models.TransientModel):
         updated_svls = self.env['stock.valuation.layer']
         updated_account_moves = self.env['account.move']
         updated_invoices = self.env['account.move']
+        skipped_entries = []
         
         for move in stock_moves:
-            # Get total cost from move lines
-            move_line_costs = move.move_line_ids.mapped('product_cost')
-            total_move_cost = sum(move_line_costs) if move_line_costs else 0.0
+            # Get total cost using multiple fallback strategies
+            # This tries: product_cost -> mo_purchase_cost -> direct MO lookup -> total_purchase_cost
+            total_move_cost, has_cost = move._get_custom_cost_from_move_lines()
             
-            if float_is_zero(total_move_cost, precision_rounding=move.product_id.uom_id.rounding):
+            if not has_cost or float_is_zero(total_move_cost, precision_rounding=move.product_id.uom_id.rounding):
                 continue
             
             # Get quantity in product UOM
@@ -69,19 +73,28 @@ class UpdateCogsWizard(models.TransientModel):
                     lambda s: s.quantity < 0  # Outgoing layers have negative quantity
                 )
                 for svl in svls:
-                    if abs(svl.unit_cost - correct_unit_cost) > 0.01:  # Only update if different
-                        currency = move.company_id.currency_id
-                        # Update unit_cost and recalculate value
-                        # Note: quantity is negative for out moves
-                        new_value = currency.round(abs(svl.quantity) * correct_unit_cost)
-                        # Value should be negative for out moves
-                        if svl.quantity < 0:
-                            new_value = -new_value
-                        svl.write({
-                            'unit_cost': correct_unit_cost,
-                            'value': new_value,
-                        })
-                        updated_svls |= svl
+                    # Check if record still exists
+                    if not svl.exists():
+                        skipped_entries.append(_("SVL %s (deleted)") % svl.id)
+                        continue
+                    try:
+                        if abs(svl.unit_cost - correct_unit_cost) > 0.01:  # Only update if different
+                            currency = move.company_id.currency_id
+                            # Update unit_cost and recalculate value
+                            # Note: quantity is negative for out moves
+                            new_value = currency.round(abs(svl.quantity) * correct_unit_cost)
+                            # Value should be negative for out moves
+                            if svl.quantity < 0:
+                                new_value = -new_value
+                            svl.write({
+                                'unit_cost': correct_unit_cost,
+                                'value': new_value,
+                            })
+                            updated_svls |= svl
+                    except (MissingError, Exception) as e:
+                        _logger.warning("Error updating SVL %s: %s", svl.id, str(e))
+                        skipped_entries.append(_("SVL %s: %s") % (svl.id, str(e)))
+                        continue
             
             # 2. Update Stock Delivery Accounting Entries
             if self.update_delivery_entries:
@@ -89,6 +102,10 @@ class UpdateCogsWizard(models.TransientModel):
                     lambda m: m.state == 'posted'
                 )
                 for acc_move in account_moves:
+                    # Check if record still exists
+                    if not acc_move.exists():
+                        skipped_entries.append(_("Account Move %s (deleted)") % acc_move.name)
+                        continue
                     # Find lines with Stock Interim (Delivered) account
                     stock_output_account = move.product_id.categ_id.property_stock_account_output_categ_id
                     if stock_output_account:
@@ -99,7 +116,11 @@ class UpdateCogsWizard(models.TransientModel):
                             # Unpost, update, and repost
                             try:
                                 acc_move.button_draft()
-                                for line in interim_lines:
+                                # Check again after unposting - records might have changed
+                                if not acc_move.exists():
+                                    skipped_entries.append(_("Account Move %s (deleted after unpost)") % acc_move.name)
+                                    continue
+                                for line in interim_lines.exists():  # Filter out deleted lines
                                     # Recalculate balance based on correct cost
                                     if line.credit > 0:  # Credit side (Stock Interim)
                                         new_balance = -abs(quantity_done * correct_unit_cost)
@@ -111,30 +132,39 @@ class UpdateCogsWizard(models.TransientModel):
                                     valuation_lines = acc_move.line_ids.filtered(
                                         lambda l: l.account_id == stock_valuation_account
                                     )
-                                    for val_line in valuation_lines:
+                                    for val_line in valuation_lines.exists():  # Filter out deleted lines
                                         if val_line.debit > 0:  # Debit side
                                             new_balance = abs(quantity_done * correct_unit_cost)
                                             if abs(val_line.balance - new_balance) > 0.01:
                                                 val_line.write({'balance': new_balance})
                                 acc_move.action_post()
                                 updated_account_moves |= acc_move
-                            except Exception as e:
-                                # If update fails, try to repost
-                                if acc_move.state == 'draft':
-                                    acc_move.action_post()
-                                raise UserError(_("Error updating entry %s: %s") % (acc_move.name, str(e)))
+                            except (MissingError, Exception) as e:
+                                # If update fails, try to repost if still in draft
+                                try:
+                                    if acc_move.exists() and acc_move.state == 'draft':
+                                        acc_move.action_post()
+                                except:
+                                    pass
+                                _logger.warning("Error updating account move %s: %s", acc_move.name, str(e))
+                                skipped_entries.append(_("Account Move %s: %s") % (acc_move.name, str(e)))
+                                continue
             
             # 3. Update Invoice COGS Entries
             if self.update_invoice_cogs:
                 # Get sale order line from this move
                 so_line = move.sale_line_id
-                if so_line:
+                if so_line and so_line.exists():
                     # Get all invoices for this sale order line
                     invoices = so_line.invoice_lines.mapped('move_id').filtered(
                         lambda m: m.state == 'posted' and m.move_type in ('out_invoice', 'out_refund')
                     )
                     stock_output_account = move.product_id.categ_id.property_stock_account_output_categ_id
                     for invoice in invoices:
+                        # Check if record still exists
+                        if not invoice.exists():
+                            skipped_entries.append(_("Invoice %s (deleted)") % invoice.name)
+                            continue
                         # Get COGS lines for this product
                         cogs_lines = invoice.line_ids.filtered(
                             lambda l: l.display_type == 'cogs' 
@@ -143,7 +173,11 @@ class UpdateCogsWizard(models.TransientModel):
                         if cogs_lines:
                             try:
                                 invoice.button_draft()
-                                for cogs_line in cogs_lines:
+                                # Check again after unposting
+                                if not invoice.exists():
+                                    skipped_entries.append(_("Invoice %s (deleted after unpost)") % invoice.name)
+                                    continue
+                                for cogs_line in cogs_lines.exists():  # Filter out deleted lines
                                     # Recalculate based on correct cost
                                     qty = cogs_line.product_uom_id._compute_quantity(
                                         cogs_line.quantity, cogs_line.product_id.uom_id
@@ -162,11 +196,16 @@ class UpdateCogsWizard(models.TransientModel):
                                             cogs_line.write({'balance': new_balance})
                                 invoice.action_post()
                                 updated_invoices |= invoice
-                            except Exception as e:
-                                # If update fails, try to repost
-                                if invoice.state == 'draft':
-                                    invoice.action_post()
-                                raise UserError(_("Error updating invoice %s: %s") % (invoice.name, str(e)))
+                            except (MissingError, Exception) as e:
+                                # If update fails, try to repost if still in draft
+                                try:
+                                    if invoice.exists() and invoice.state == 'draft':
+                                        invoice.action_post()
+                                except:
+                                    pass
+                                _logger.warning("Error updating invoice %s: %s", invoice.name, str(e))
+                                skipped_entries.append(_("Invoice %s: %s") % (invoice.name, str(e)))
+                                continue
         
         # Prepare result message
         result_msg = _("Update completed:\n")
@@ -177,13 +216,23 @@ class UpdateCogsWizard(models.TransientModel):
         if self.update_invoice_cogs:
             result_msg += _("- Updated %d Invoice COGS Entry/ies\n") % len(updated_invoices)
         
+        if skipped_entries:
+            result_msg += _("\nSkipped entries (deleted or error):\n")
+            for entry in skipped_entries[:10]:  # Show first 10 skipped entries
+                result_msg += _("- %s\n") % entry
+            if len(skipped_entries) > 10:
+                result_msg += _("- ... and %d more\n") % (len(skipped_entries) - 10)
+        
+        # Use warning type if there were skipped entries, success otherwise
+        msg_type = 'warning' if skipped_entries else 'success'
+        
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'title': _('Update Complete'),
                 'message': result_msg,
-                'type': 'success',
+                'type': msg_type,
                 'sticky': False,
             }
         }

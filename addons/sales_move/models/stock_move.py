@@ -8,6 +8,63 @@ from odoo.tools.misc import OrderedSet
 class StockMove(models.Model):
     _inherit = 'stock.move'
     
+    def _get_custom_cost_from_move_lines(self):
+        """
+        Get custom cost from move lines using multiple fallback strategies.
+        Tries in order:
+        1. product_cost (from manufacturing order via lot)
+        2. mo_purchase_cost (from lot_purchase_cost or move_id.purchase_cost)
+        3. Direct lookup from manufacturing order via lot name
+        4. total_purchase_cost from stock.move (computed from mo_purchase_cost)
+        
+        Returns: (total_cost, has_cost) tuple
+        """
+        self.ensure_one()
+        total_cost = 0.0
+        
+        if not self.move_line_ids:
+            return 0.0, False
+        
+        # Strategy 1: Try product_cost (from mo.purchase_cost via lot)
+        move_line_costs = self.move_line_ids.mapped('product_cost')
+        total_cost = sum([c for c in move_line_costs if c and c > 0])
+        
+        if total_cost and not float_is_zero(total_cost, precision_rounding=self.product_id.uom_id.rounding):
+            return total_cost, True
+        
+        # Strategy 2: Try mo_purchase_cost (from lot_purchase_cost or move_id.purchase_cost)
+        mo_costs = self.move_line_ids.mapped('mo_purchase_cost')
+        total_cost = sum([c for c in mo_costs if c and c > 0])
+        
+        if total_cost and not float_is_zero(total_cost, precision_rounding=self.product_id.uom_id.rounding):
+            return total_cost, True
+        
+        # Strategy 3: Direct lookup from manufacturing orders via lot names
+        # Only use this if product_cost and mo_purchase_cost are not available
+        total_cost = 0.0
+        for move_line in self.move_line_ids:
+            if move_line.lot_id and move_line.lot_id.name:
+                # Find manufacturing order by lot name
+                mo = self.env['mrp.production'].search([
+                    ('lot_producing_id.name', '=', move_line.lot_id.name)
+                ], limit=1)
+                if mo and mo.purchase_cost:
+                    # Use the purchase_cost from the manufacturing order
+                    # This is the total cost for that lot
+                    total_cost += mo.purchase_cost
+        
+        if total_cost and not float_is_zero(total_cost, precision_rounding=self.product_id.uom_id.rounding):
+            return total_cost, True
+        
+        # Strategy 4: Use total_purchase_cost from stock.move (computed from mo_purchase_cost)
+        if self.total_purchase_cost and not float_is_zero(
+            self.total_purchase_cost, 
+            precision_rounding=self.product_id.uom_id.rounding
+        ):
+            return self.total_purchase_cost, True
+        
+        return 0.0, False
+    
     def _get_price_unit(self):
         """
         Override to use product_cost from stock.move.line when available for outgoing moves.
@@ -21,19 +78,19 @@ class StockMove(models.Model):
             and self.quantity_done > 0
             and self.move_line_ids):
             
-            # Get total cost from all move lines (product_cost comes from manufacturing order)
-            total_cost_from_lines = sum(self.move_line_ids.mapped('product_cost'))
+            # Get total cost using multiple fallback strategies
+            total_cost, has_cost = self._get_custom_cost_from_move_lines()
             
-            if total_cost_from_lines and not float_is_zero(total_cost_from_lines, precision_rounding=self.product_id.uom_id.rounding):
+            if has_cost:
                 # Get quantity done in product UOM (the actual quantity delivered)
                 quantity_done_in_product_uom = self.product_uom._compute_quantity(
                     self.quantity_done, self.product_id.uom_id
                 )
                 
                 if not float_is_zero(quantity_done_in_product_uom, precision_rounding=self.product_id.uom_id.rounding):
-                    # Calculate cost per unit: total_cost_from_lines / quantity_done
+                    # Calculate cost per unit: total_cost / quantity_done
                     # This gives us the cost per unit in product UOM
-                    cost_per_unit_product_uom = total_cost_from_lines / quantity_done_in_product_uom
+                    cost_per_unit_product_uom = total_cost / quantity_done_in_product_uom
                     
                     # Convert to move's UOM for return
                     cost_per_unit_move_uom = self.product_id.uom_id._compute_price(
@@ -66,22 +123,16 @@ class StockMove(models.Model):
             
             quantity = forced_quantity or valued_quantity
             
-            # Get custom cost from move lines
-            move_line_costs = move.move_line_ids.mapped('product_cost')
-            total_move_cost = sum(move_line_costs) if move_line_costs else 0.0
+            # Get custom cost using multiple fallback strategies
+            total_move_cost, has_cost = move._get_custom_cost_from_move_lines()
             
-            # Calculate custom unit cost if we have move lines with product_cost
+            # Calculate custom unit cost if we have cost
             custom_unit_cost = None
             if (move._is_out() 
-                and total_move_cost 
-                and not float_is_zero(total_move_cost, precision_rounding=move.product_id.uom_id.rounding)
+                and has_cost
                 and not float_is_zero(quantity, precision_rounding=move.product_id.uom_id.rounding)):
-                # Calculate cost per unit: total_move_cost / quantity
-                quantity_in_product_uom = move.product_uom._compute_quantity(
-                    quantity, move.product_id.uom_id
-                )
-                if not float_is_zero(quantity_in_product_uom, precision_rounding=move.product_id.uom_id.rounding):
-                    custom_unit_cost = total_move_cost / quantity_in_product_uom
+                # quantity is already in product UOM, use it directly
+                custom_unit_cost = total_move_cost / quantity
             
             # Use default method but override unit_cost if we have custom cost
             svl_vals = move.product_id._prepare_out_svl_vals(quantity, move.company_id)
@@ -460,4 +511,3 @@ class StockQuant(models.Model):
                     'manual_first_process': move.manual_first_process,
                 })
         return quant
-

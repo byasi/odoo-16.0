@@ -221,13 +221,11 @@ class AccountMoveLine(models.Model):
             if float_is_zero(available_qty, precision_rounding=product_uom.rounding):
                 continue
             
-            # Use product_cost from stock.move.line (comes from manufacturing order)
-            # This is the actual cost per lot that was manufactured
-            # Get total cost from all move lines for this move
-            move_line_costs = move.move_line_ids.mapped('product_cost')
-            total_move_cost = sum(move_line_costs) if move_line_costs else 0.0
+            # Get custom cost using multiple fallback strategies
+            # This tries: product_cost -> mo_purchase_cost -> direct MO lookup -> total_purchase_cost
+            total_move_cost, has_cost = move._get_custom_cost_from_move_lines()
             
-            if total_move_cost and not float_is_zero(total_move_cost, precision_rounding=product_uom.rounding) and not float_is_zero(move_qty, precision_rounding=product_uom.rounding):
+            if has_cost and not float_is_zero(move_qty, precision_rounding=product_uom.rounding):
                 # Calculate cost per unit: total_move_cost / quantity delivered
                 cost_per_unit = total_move_cost / move_qty
                 
