@@ -18,7 +18,8 @@ class UpdateCogsWizard(models.TransientModel):
             "This wizard will update:\n"
             "1. Stock Valuation Layers (SVL) with correct cost from product_cost\n"
             "2. Stock delivery accounting entries (Stock Interim credit)\n"
-            "3. Invoice COGS entries (Stock Interim debit)\n\n"
+            "3. Invoice COGS entries (Stock Interim debit)\n"
+            "4. Update all invoices to have product_cost from sale order lines\n\n"
             "Note: Only entries for stock moves with product_cost in move lines will be updated."
         )
 
@@ -26,6 +27,7 @@ class UpdateCogsWizard(models.TransientModel):
     update_svl = fields.Boolean(string="Update Stock Valuation Layers", default=True)
     update_delivery_entries = fields.Boolean(string="Update Stock Delivery Entries", default=True)
     update_invoice_cogs = fields.Boolean(string="Update Invoice COGS Entries", default=True)
+    update_invoice_product_cost = fields.Boolean(string="Update All Invoices Product Cost", default=True)
 
     def action_update_entries(self):
         """
@@ -46,6 +48,8 @@ class UpdateCogsWizard(models.TransientModel):
         updated_svls = self.env['stock.valuation.layer']
         updated_account_moves = self.env['account.move']
         updated_invoices = self.env['account.move']
+        updated_invoice_lines = self.env['account.move.line']
+        invoices_to_repost_for_product_cost = self.env['account.move']
         skipped_entries = []
         
         for move in stock_moves:
@@ -207,6 +211,66 @@ class UpdateCogsWizard(models.TransientModel):
                                 skipped_entries.append(_("Invoice %s: %s") % (invoice.name, str(e)))
                                 continue
         
+        # 4. Update All Invoices Product Cost
+        if self.update_invoice_product_cost:
+            # Find all invoice lines that:
+            # - Are part of customer invoices (out_invoice, out_refund)
+            # - Have a sale order line linked
+            # - Have product_cost = 0 or missing
+            invoice_lines = self.env['account.move.line'].search([
+                ('move_id.move_type', 'in', ('out_invoice', 'out_refund')),
+                ('sale_line_ids', '!=', False),
+                ('product_id', '!=', False),
+                '|',
+                ('product_cost', '=', 0.0),
+                ('product_cost', '=', False),
+            ])
+            
+            for inv_line in invoice_lines:
+                # Get the related sale order line
+                so_line = inv_line.sale_line_ids and inv_line.sale_line_ids[0] or False
+                if so_line and so_line.product_cost and not float_is_zero(so_line.product_cost, precision_rounding=so_line.product_id.uom_id.rounding):
+                    try:
+                        # Check if invoice is posted - if so, we need to unpost, update, and repost
+                        invoice = inv_line.move_id
+                        was_posted = invoice.state == 'posted'
+                        
+                        if was_posted:
+                            invoice.button_draft()
+                            # Check if invoice still exists after unposting
+                            if not invoice.exists():
+                                skipped_entries.append(_("Invoice %s (deleted after unpost)") % invoice.name)
+                                continue
+                        
+                        # Update product_cost on the invoice line
+                        inv_line.write({'product_cost': so_line.product_cost})
+                        updated_invoice_lines |= inv_line
+                        
+                        # Track invoice for reposting if it was posted
+                        if was_posted and invoice.exists():
+                            invoices_to_repost_for_product_cost |= invoice
+                            
+                    except (MissingError, Exception) as e:
+                        # If update fails, try to repost if still in draft
+                        try:
+                            if invoice.exists() and invoice.state == 'draft':
+                                invoice.action_post()
+                        except:
+                            pass
+                        _logger.warning("Error updating invoice line %s (Invoice %s): %s", inv_line.id, inv_line.move_id.name, str(e))
+                        skipped_entries.append(_("Invoice Line %s (Invoice %s): %s") % (inv_line.id, inv_line.move_id.name, str(e)))
+                        continue
+            
+            # Repost all invoices that were unposted
+            for invoice in invoices_to_repost_for_product_cost:
+                try:
+                    if invoice.exists() and invoice.state == 'draft':
+                        invoice.action_post()
+                        updated_invoices |= invoice
+                except (MissingError, Exception) as e:
+                    _logger.warning("Error reposting invoice %s: %s", invoice.name, str(e))
+                    skipped_entries.append(_("Invoice %s (repost failed): %s") % (invoice.name, str(e)))
+        
         # Prepare result message
         result_msg = _("Update completed:\n")
         if self.update_svl:
@@ -215,6 +279,10 @@ class UpdateCogsWizard(models.TransientModel):
             result_msg += _("- Updated %d Stock Delivery Entry/ies\n") % len(updated_account_moves)
         if self.update_invoice_cogs:
             result_msg += _("- Updated %d Invoice COGS Entry/ies\n") % len(updated_invoices)
+        if self.update_invoice_product_cost:
+            result_msg += _("- Updated %d Invoice Line(s) with Product Cost\n") % len(updated_invoice_lines)
+            if invoices_to_repost_for_product_cost:
+                result_msg += _("- Reposted %d Invoice(s) to recalculate COGS\n") % len(invoices_to_repost_for_product_cost)
         
         if skipped_entries:
             result_msg += _("\nSkipped entries (deleted or error):\n")

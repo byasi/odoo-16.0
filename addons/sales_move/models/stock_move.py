@@ -356,9 +356,10 @@ class StockMove(models.Model):
                                     taken_quantity = move._update_reserved_quantity(qty_to_reserve, qty_to_reserve, move.location_id, lot_id=lot, strict=False)
                                     if float_is_zero(taken_quantity, precision_rounding=rounding):
                                         continue
-                                    move_line_vals = move._prepare_move_line_vals(taken_quantity, lot_id=lot.id)
+                                    move_line_vals = move._prepare_move_line_vals(taken_quantity)
                                     move_line_vals.update({
                                         'location_id': move.location_id.id,
+                                        'lot_id': lot.id,
                                     })
                                     move_line_vals_list.append(move_line_vals)
                                     remaining_quantity -= taken_quantity

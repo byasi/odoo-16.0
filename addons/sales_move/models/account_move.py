@@ -1,6 +1,9 @@
 from odoo import models, fields, api
 from datetime import date
 from odoo.tools import float_is_zero, float_compare
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
@@ -82,7 +85,9 @@ class AccountMoveLine(models.Model):
     
     product_cost = fields.Float(
         string='Product Cost',
-        help='Product cost from sale order line, used for COGS calculation'
+        help='Product cost from sale order line, used for COGS calculation',
+        store=True,
+        default=0.0
     )
 
     @api.depends('price_subtotal', 'move_id.payment_id.amount')
@@ -123,10 +128,9 @@ class AccountMoveLine(models.Model):
             and not float_is_zero(self.product_cost, precision_rounding=self.product_id.uom_id.rounding)
             and so_line.qty_delivered > 0):
             
-            # Get quantity to invoice in product UOM
-            qty_to_invoice = self.product_uom_id._compute_quantity(
-                self.quantity, self.product_id.uom_id
-            )
+            # Get quantity to invoice - use manual_quantity_so if available, otherwise use quantity
+            # This is the actual quantity being invoiced
+            invoiced_qty = self.manual_quantity_so if self.manual_quantity_so > 0 else self.quantity
             
             # Handle refunds
             if self.move_id.move_type == 'out_refund':
@@ -134,18 +138,40 @@ class AccountMoveLine(models.Model):
                     lambda line: any(line.sale_line_ids.mapped('is_downpayment'))
                 )
                 if not down_payment:
-                    qty_to_invoice = -qty_to_invoice
+                    invoiced_qty = -invoiced_qty
             
-            if not float_is_zero(qty_to_invoice, precision_rounding=self.product_id.uom_id.rounding):
+            if not float_is_zero(invoiced_qty, precision_rounding=self.product_uom_id.rounding):
                 # product_cost in sale order line is total cost for all delivered items
                 # Calculate cost per unit: total product_cost / quantity delivered
-                cost_per_unit = self.product_cost / so_line.qty_delivered
-                
-                # Convert to invoice line's UOM
-                price_unit = self.product_id.uom_id.with_company(self.company_id)._compute_price(
-                    cost_per_unit, self.product_uom_id
+                # Convert delivered quantity to product UOM for accurate calculation
+                qty_delivered_in_product_uom = so_line.product_uom._compute_quantity(
+                    so_line.qty_delivered, so_line.product_id.uom_id
                 )
-                return price_unit
+                
+                if not float_is_zero(qty_delivered_in_product_uom, precision_rounding=self.product_id.uom_id.rounding):
+                    # Calculate cost per unit in product UOM
+                    # cost_per_unit_product_uom = self.product_cost / qty_delivered_in_product_uom
+                    cost_per_unit_product_uom = self.product_cost 
+                    
+                    # Convert to invoice line's UOM
+                    # This ensures the cost per unit matches the invoiced quantity's UOM
+                    price_unit = self.product_id.uom_id.with_company(self.company_id)._compute_price(
+                        cost_per_unit_product_uom, self.product_uom_id
+                    )
+                    
+                    # Log for debugging
+                    _logger.info(
+                        "COGS Calculation - Invoice: %s, Product: %s, "
+                        "Product Cost: %s, Qty Delivered: %s, Qty Delivered (Product UOM): %s, "
+                        "Cost Per Unit (Product UOM): %s, Price Unit (Invoice UOM): %s, "
+                        "Invoice Quantity: %s, Manual Qty SO: %s",
+                        self.move_id.name, self.product_id.name,
+                        self.product_cost, so_line.qty_delivered, qty_delivered_in_product_uom,
+                        cost_per_unit_product_uom, price_unit,
+                        self.quantity, self.manual_quantity_so
+                    )
+                    
+                    return price_unit
         
         # STRATEGY 2: Calculate from stock moves (fallback if product_cost not available)
         # Get the sale order line from the invoice line

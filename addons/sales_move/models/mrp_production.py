@@ -207,15 +207,28 @@ class MrpProduction(models.Model):
                     elif total_qty_done_rounded < new_qty_rounded:
                         # If the total quantity in move lines is less than the required quantity,
                         # create a new move line for the remaining quantity
+                        # Note: We don't set lot_id here because it should be assigned during reservation
+                        # Setting lot_id here without proper reservation could cause issues during unbuild
                         remaining_qty = new_qty_rounded - total_qty_done_rounded
-                        self.env['stock.move.line'].create({
-                            'move_id': move.id,
-                            'product_id': move.product_id.id,
-                            'product_uom_id': move.product_uom.id,
-                            'location_id': move.location_id.id,
-                            'location_dest_id': move.location_dest_id.id,
-                            'qty_done': remaining_qty,
-                        })
+                        # Only create move line if there are existing move lines to preserve lot structure
+                        # Otherwise, let the normal reservation process handle it
+                        if move.move_line_ids:
+                            # Try to preserve lot information from existing move lines if possible
+                            existing_lot = move.move_line_ids.filtered(lambda ml: ml.lot_id)[:1]
+                            move_line_vals = {
+                                'move_id': move.id,
+                                'product_id': move.product_id.id,
+                                'product_uom_id': move.product_uom.id,
+                                'location_id': move.location_id.id,
+                                'location_dest_id': move.location_dest_id.id,
+                                'qty_done': remaining_qty,
+                            }
+                            # Only set lot_id if we have an existing lot and it makes sense
+                            # This preserves lot information for unbuild operations
+                            if existing_lot and existing_lot.lot_id:
+                                move_line_vals['lot_id'] = existing_lot.lot_id.id
+                            self.env['stock.move.line'].create(move_line_vals)
+                        # If no existing move lines, let reservation handle it properly
 
                 if move._should_bypass_reservation() \
                         or move.picking_type_id.reservation_method == 'at_confirm' \

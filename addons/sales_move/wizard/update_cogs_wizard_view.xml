@@ -13,6 +13,7 @@
                         <field name="update_svl"/>
                         <field name="update_delivery_entries"/>
                         <field name="update_invoice_cogs"/>
+                        <field name="update_invoice_product_cost"/>
                     </group>
                 </sheet>
                 <footer>
