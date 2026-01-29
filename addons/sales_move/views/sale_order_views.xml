@@ -53,6 +53,9 @@
                     <!-- Current Market Price Fields -->
                     <field name="current_market_price" string="Current Market Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                     <field name="current_net_price" string="Current Net Price" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
+                    <field name="current_exchange_rate_currency_from" string="Rate From Currency" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                    <field name="current_exchange_rate_currency_to" string="Rate To Currency" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
+                    <field name="current_exchange_rate" string="Current Exchange Rate" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                     <field name="profit_loss" string="Profit/Loss" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                 </xpath>
                 <xpath expr="//field[@widget='section_and_note_text']" position="after">

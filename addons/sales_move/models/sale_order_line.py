@@ -53,6 +53,27 @@ class SaleOrder(models.Model):
     gross_weight = fields.Float(string="Gross Weight", compute="_compute_gross_weight", store=True)
     net_weight = fields.Float(string="Net Weight", compute="_compute_net_weight", store=True)
     current_rate = fields.Float(string="Current Rate", digits=(16, 5), compute="_compute_current_rate", store=True)
+    current_exchange_rate = fields.Float(
+        string="Current Exchange Rate",
+        digits=(16, 6),
+        compute="_compute_current_exchange_rate",
+        inverse="_inverse_current_exchange_rate",
+        store=True,
+        readonly=False,
+        help="Manual rate when unfixed: 1 unit of 'Rate From Currency' = this many units of 'Rate To Currency'. On fix, Odoo rates are used."
+    )
+    current_exchange_rate_currency_from = fields.Many2one(
+        'res.currency',
+        string="Rate From Currency",
+        default=lambda self: self.env.ref('base.USD', raise_if_not_found=False),
+        help="Currency for the manual exchange rate (1 unit of this = Current Exchange Rate units of Rate To Currency). Only used when order is unfixed."
+    )
+    current_exchange_rate_currency_to = fields.Many2one(
+        'res.currency',
+        string="Rate To Currency",
+        default=lambda self: self.env.ref('base.UGX', raise_if_not_found=False),
+        help="Currency for the manual exchange rate. Only used when order is unfixed."
+    )
     selected_payment_ids = fields.Many2many(
         'account.payment',
         string="Customer Payment",
@@ -154,19 +175,20 @@ class SaleOrder(models.Model):
         for order in self:
             order.unfixed_balance = abs(order.amount_total - order.payment_amount)
 
-    @api.depends('selected_payment_ids')
+    @api.depends('selected_payment_ids', 'state', 'current_exchange_rate', 'current_exchange_rate_currency_from', 'current_exchange_rate_currency_to')
     def _compute_payment_amount(self):
         for record in self:
             total_amount = 0.0
+            conv_date = fields.Date.context_today(record)
             for payment in record.selected_payment_ids:
                 if payment.currency_id != record.currency_id:
-                    # Convert payment amount to the base currency (or the currency of the record)
-                    total_amount += payment.currency_id._convert(
-                        payment.amount,
+                    # When unfixed, use manual exchange rate if the pair matches; else Odoo rate
+                    rate = record._get_conversion_rate_for_order(
+                        payment.currency_id,
                         record.currency_id,
-                        record.company_id,
-                        payment.date or fields.Date.context_today(record)
+                        payment.date or conv_date
                     )
+                    total_amount += payment.amount * rate
                 else:
                     total_amount += payment.amount
             record.payment_amount = total_amount
@@ -179,6 +201,63 @@ class SaleOrder(models.Model):
                 order.current_rate = sum(lines.mapped('current_rate')) / len(lines)
             else:
                 order.current_rate = 0.0
+
+    @api.depends('currency_id', 'market_price_currency', 'current_exchange_rate_currency_from', 'current_exchange_rate_currency_to', 'date_order')
+    def _compute_current_exchange_rate(self):
+        for order in self:
+            from_cur = order.current_exchange_rate_currency_from or order.currency_id
+            to_cur = order.current_exchange_rate_currency_to or order.market_price_currency
+            if from_cur and to_cur and from_cur != to_cur:
+                try:
+                    conversion_date = order.date_order.date() if order.date_order else fields.Date.today()
+                    order.current_exchange_rate = self.env['res.currency']._get_conversion_rate(
+                        from_cur,
+                        to_cur,
+                        order.company_id,
+                        conversion_date
+                    )
+                except Exception:
+                    order.current_exchange_rate = 0.0
+            else:
+                order.current_exchange_rate = 1.0
+
+    def _inverse_current_exchange_rate(self):
+        pass
+
+    @api.onchange('currency_id', 'market_price_currency', 'state')
+    def _onchange_currency_set_rate_currencies(self):
+        """Default manual rate currency pair from order and market price currency when unfixed."""
+        if self.state == 'unfixed':
+            if not self.current_exchange_rate_currency_from and self.currency_id:
+                self.current_exchange_rate_currency_from = self.currency_id
+            if not self.current_exchange_rate_currency_to and self.market_price_currency:
+                self.current_exchange_rate_currency_to = self.market_price_currency
+
+    def _get_conversion_rate_for_order(self, from_currency, to_currency, conversion_date=None):
+        """
+        Return the conversion rate from from_currency to to_currency.
+        When order is unfixed and manual rate currencies match, use current_exchange_rate (manual).
+        When fixed (or no manual rate), use Odoo's rate so profit/loss is accurate.
+        """
+        self.ensure_one()
+        if not from_currency or not to_currency or from_currency == to_currency:
+            return 1.0
+        date = conversion_date or (self.date_order.date() if self.date_order else fields.Date.today())
+        from_cur = self.current_exchange_rate_currency_from or self.currency_id
+        to_cur = self.current_exchange_rate_currency_to or self.market_price_currency
+        # Use manual rate only when unfixed and we have a manual rate and the pair matches
+        if (
+            self.state == 'unfixed'
+            and self.current_exchange_rate
+            and from_cur and to_cur
+        ):
+            if from_currency == from_cur and to_currency == to_cur:
+                return self.current_exchange_rate
+            if from_currency == to_cur and to_currency == from_cur:
+                return 1.0 / self.current_exchange_rate if self.current_exchange_rate else 0.0
+        return self.env['res.currency']._get_conversion_rate(
+            from_currency, to_currency, self.company_id, date
+        )
 
     @api.depends('order_line.net_weight')
     def _compute_net_weight(self):
