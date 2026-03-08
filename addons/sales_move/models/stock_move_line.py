@@ -46,21 +46,33 @@ class StockMoveLine(models.Model):
         if not vals.get('lot_name'):  # Generate only if no lot_name is provided
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
-            # Check if current company is PEX-DRC or Pexebb
+            # Company-specific lot number prefixes (each company gets a unique prefix)
             current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
             current_company = self.env['res.company'].browse(current_company_id)
             company_name = current_company.name
-            
+
             if company_name == 'PEX-DRC':
                 search_pattern = f"{date_prefix}P-%"
                 lot_name = f"{date_prefix}P-"
             elif company_name == 'Pexebb':
                 search_pattern = f"{date_prefix}EB-%"
                 lot_name = f"{date_prefix}EB-"
+            elif company_name == 'P15':
+                search_pattern = f"{date_prefix}P15-%"
+                lot_name = f"{date_prefix}P15-"
+            elif company_name == 'IPhone':
+                search_pattern = f"{date_prefix}IPH-%"
+                lot_name = f"{date_prefix}IPH-"
+            elif company_name == 'P5':
+                search_pattern = f"{date_prefix}P5-%"
+                lot_name = f"{date_prefix}P5-"
+            elif company_name == 'Namaste':
+                search_pattern = f"{date_prefix}NAM-%"
+                lot_name = f"{date_prefix}NAM-"
             else:
                 search_pattern = f"{date_prefix}-%"
                 lot_name = f"{date_prefix}-"
-            
+
             # Find the highest sequence for the current date prefix
             last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
             if last_lot:
@@ -83,7 +95,7 @@ class StockMoveLine(models.Model):
             today = datetime.today()
             date_prefix = today.strftime('%d%b%y').upper()  # e.g., 21JAN25
             
-            # Check if current company is PEX-DRC or Pexebb
+            # Company-specific lot number prefixes (each company gets a unique prefix)
             current_company_id = self.env.context.get('allowed_company_ids', [self.env.company.id])[0]
             current_company = self.env['res.company'].browse(current_company_id)
             company_name = current_company.name
@@ -94,10 +106,22 @@ class StockMoveLine(models.Model):
             elif company_name == 'Pexebb':
                 search_pattern = f"{date_prefix}EB-%"
                 lot_name = f"{date_prefix}EB-"
+            elif company_name == 'P15':
+                search_pattern = f"{date_prefix}P15-%"
+                lot_name = f"{date_prefix}P15-"
+            elif company_name == 'IPhone':
+                search_pattern = f"{date_prefix}IPH-%"
+                lot_name = f"{date_prefix}IPH-"
+            elif company_name == 'P5':
+                search_pattern = f"{date_prefix}P5-%"
+                lot_name = f"{date_prefix}P5-"
+            elif company_name == 'Namaste':
+                search_pattern = f"{date_prefix}NAM-%"
+                lot_name = f"{date_prefix}NAM-"
             else:
                 search_pattern = f"{date_prefix}-%"
                 lot_name = f"{date_prefix}-"
-            
+
             # Find the highest sequence for the current date prefix
             last_lot = self.search([('lot_name', 'like', search_pattern)], order="lot_name desc", limit=1)
             if last_lot:
@@ -107,7 +131,7 @@ class StockMoveLine(models.Model):
             else:
                 # Start the sequence at 001 if no lots exist for the day
                 new_sequence = "001"
-            
+
             # Generate the lot name based on company
             vals['lot_name'] = lot_name + new_sequence
         return vals

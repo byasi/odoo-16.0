@@ -197,7 +197,6 @@
                     <field name="net_weight" sum="Net Weight" string="Net Weight" optional="show" />
                     <field name="market_price" string="Market Price" optional="hide" />
                     <field name="rate" string="Unit Price" optional="show" />
-                    
                     <!-- New Sales Order Fields -->
                     <field name="sales_method" string="Sales Method" optional="hide"/>
                     <field name="market_price_unit" string="Market Price Unit" optional="hide" attrs="{'invisible': [('sales_method', '!=', 'sales_2')]}"/>

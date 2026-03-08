@@ -1238,7 +1238,7 @@ class PurchaseOrderLine(models.Model):
                     'custom_round_down': self.custom_round_down
                 }
                 formula_dict = dict(line.order_id._compute_formula_selection()).get(line.formula, '')
-                #  custom_round_down(2302.842/dd)-219.318
+                #  custom_round_down(2302.842/dd)-219.318  line.first_process_wt / (line.first_process_wt - line.second_process_wt
                 if formula_dict:
                     result = eval(formula_dict, { }, local_variables)
                     line.product_quality = self.custom_round_down(abs(result))
