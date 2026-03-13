@@ -283,3 +283,20 @@ class ResPartner(models.Model):
         string="Account Payable",
         default=lambda self: self.env['account.account'].search([('code', '=', '211000')], limit=1),
     )
+
+    @api.model
+    def default_get(self, fields_list):
+        values = super().default_get(fields_list)
+        # When creating a new contact/vendor, set company_id to the current company
+        # (where the user is logged in). Child contacts keep company from parent (set by base).
+        if 'company_id' in fields_list and not values.get('company_id') and self.env.company:
+            values['company_id'] = self.env.company.id
+        return values
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            # Ensure company_id is set on create when not provided (e.g. quick create, import, code)
+            if not vals.get('company_id') and self.env.company:
+                vals['company_id'] = self.env.company.id
+        return super().create(vals_list)

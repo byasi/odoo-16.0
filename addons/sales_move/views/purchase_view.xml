@@ -79,7 +79,7 @@
                     <field name="transaction_price_per_unit" string="Transaction Price per Unit"/>
                     <field name="current_transaction_price_per_unit" string="Current Transaction Price per Unit" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="x_factor" string="Xfactor"/>
-                     <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
+                    <field name="selected_payment_ids" widget="many2many_tags" attrs="{'readonly': [('state', '!=', 'unfixed')]}" string="Select Payment Ref"/>
                     <field name="payment_amount" string="Paid Unfixed Amount"/>
                     <field name="unfixed_balance" string="Balance"/>
                     <!-- <field name="lot_no" string="Lot No" /> -->
@@ -90,7 +90,7 @@
                 <xpath expr="//field[@name='order_line']//field[@name='product_id']" position="attributes">
                     <attribute name="options">{"no_open":true,"no_create":true}</attribute>
                 </xpath>
-                
+
                 <!-- Alternative approach: restrict product creation in the tree view -->
                 <xpath expr="//field[@name='order_line']/tree//field[@name='product_id']" position="attributes">
                     <attribute name="options">{"no_open":true,"no_create":true}</attribute>
@@ -102,10 +102,7 @@
                     <field name="gross_weight" string="Gross Weight" optional="show"/>
                     <field name="is_pex_drc" string="Is PEX-DRC" invisible="1"/>
                     <field name="first_process_wt" string="Actual Process Weight" optional="show"/>
-                    <field name="manual_first_process"
-                        string="Manual First Process Weight"
-                        optional="hide"
-                        attrs="{'invisible': [('is_pex_drc', '=', True)], 'readonly': [('is_pex_drc', '=', True)]}" />
+                    <field name="manual_first_process" string="Manual First Process Weight" optional="hide" attrs="{'invisible': [('is_pex_drc', '=', True)], 'readonly': [('is_pex_drc', '=', True)]}" />
                     <field name="second_process_wt" string="Second Process Weight" optional="show"/>
                     <field name="product_quality" string="Actual Product Quality" optional="show"/>
                     <field name="manual_product_quality" string="Manual Product Quality" optional="hide"/>
@@ -206,7 +203,7 @@
                 </xpath>
             </field>
         </record>
-        
+
         <!-- Server Action to Update All Total First Process -->
         <record id="action_update_all_total_first_process" model="ir.actions.server">
             <field name="name">Update All Total First Process</field>
@@ -216,6 +213,17 @@
             <field name="code">
 # Update total_first_process for all purchase orders
 result = env['purchase.order'].update_all_total_first_process()
+            </field>
+        </record>
+
+        <!-- One-time fix: Recompute Product Quality for all purchase orders (fixes production DB where product_quality was stored as total_first_process) -->
+        <record id="action_recompute_product_quality_all" model="ir.actions.server">
+            <field name="name">Recompute Product Quality (All Orders)</field>
+            <field name="model_id" ref="purchase.model_purchase_order"/>
+            <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+            <field name="state">code</field>
+            <field name="code">
+env['purchase.order'].recompute_product_quality_all()
             </field>
         </record>
     </data>

@@ -106,7 +106,12 @@ class PurchaseOrder(models.Model):
         compute='_compute_totals',
         store=True
     )
-    product_quality = fields.Float(string="Product Quality", compute="_compute_product_quality", store=True)
+    product_quality = fields.Float(
+        string="Product Quality",
+        compute="_compute_product_quality",
+        store=True,
+        group_operator='avg',
+    )
 
     def action_create_invoice(self):
         """ Override the bill creation to copy the Order Deadline as the Bill Date. """
@@ -145,16 +150,47 @@ class PurchaseOrder(models.Model):
             order.total_without_weights = total_without_weights
             order.total_without_weights_ugx = total_without_weights_ugx
             order.total_first_process = total_first_process
-            order.product_quality = total_first_process
 
-    @api.depends('order_line', 'order_line.product_quality')
+    @api.depends('order_line', 'order_line.product_quality', 'order_line.first_process_wt', 'total_first_process')
     def _compute_product_quality(self):
         for order in self:
-            if order.order_line:
-                order.product_quality = sum(line.product_quality for line in order.order_line) / len(order.order_line)
+            if order.order_line and order.total_first_process:
+                total_weighted_quality = sum(
+                    line.product_quality * line.first_process_wt for line in order.order_line
+                )
+                order.product_quality = self.custom_round_down(
+                    total_weighted_quality / order.total_first_process
+                )
             else:
                 order.product_quality = 0.0
-    
+
+    def recompute_product_quality_all(self):
+        """
+        One-time fix: recompute stored product_quality for all purchase orders.
+        Use this in production after deploying the fix where product_quality
+        was incorrectly set to total_first_process. Run once from Server Action
+        or from Settings → Technical → Server Actions.
+        """
+        batch_size = 100
+        domain = []
+        total_updated = 0
+        while True:
+            orders = self.search(domain, limit=batch_size, order='id')
+            if not orders:
+                break
+            for order in orders:
+                if order.order_line and order.total_first_process:
+                    total_weighted = sum(
+                        line.product_quality * line.first_process_wt for line in order.order_line
+                    )
+                    new_val = order.custom_round_down(total_weighted / order.total_first_process)
+                else:
+                    new_val = 0.0
+                order.write({'product_quality': new_val})
+                total_updated += 1
+            domain = [('id', '>', orders[-1].id)]
+        return total_updated
+
     def custom_round_down(self, value):
         scaled_value = value * 100
         rounded_down_value = math.floor(scaled_value) / 100
