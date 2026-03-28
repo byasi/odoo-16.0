@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_purchase_order_analysis_wizard_form" model="ir.ui.view">
+        <field name="name">purchase.order.analysis.wizard.form</field>
+        <field name="model">purchase.order.analysis.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Purchase Order Analysis">
+                <sheet>
+                    <group>
+                        <group string="Date Range">
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <button name="action_load_orders" string="Load Purchase Orders" type="object" class="btn-primary"/>
+                        </group>
+                    </group>
+                    <field name="has_orders" invisible="1"/>
+                    <notebook attrs="{'invisible': [('has_orders', '=', False)]}">
+                        <page string="Orders in Range" name="orders">
+                            <field name="order_line_ids" nolabel="1">
+                                <tree editable="bottom" decoration-muted="selected == False">
+                                    <field name="selected" widget="boolean_toggle"/>
+                                    <field name="order_id" options="{'no_open': True}" readonly="1"/>
+                                    <field name="partner_id" readonly="1"/>
+                                    <field name="date_order" readonly="1"/>
+                                    <field name="state" readonly="1"/>
+                                    <field name="net_price" readonly="1"/>
+                                    <field name="product_quality" readonly="1"/>
+                                    <field name="total_first_process" readonly="1"/>
+                                    <field name="total_with_weights" readonly="1"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                    <group attrs="{'invisible': [('has_orders', '=', False)]}" string="Averages (selected orders)">
+                        <field name="selected_count" readonly="1"/>
+                        <field name="currency_id" readonly="1"/>
+                        <field name="average_net_price" readonly="1"/>
+                        <field name="average_weighted_product_quality" readonly="1"/>
+                        <field name="total_first_process_wt" readonly="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_purchase_order_analysis_wizard" model="ir.actions.act_window">
+        <field name="name">Purchase Order Analysis</field>
+        <field name="res_model">purchase.order.analysis.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_purchase_order_analysis_wizard"
+              name="Order Analysis (Date Range)"
+              parent="purchase.purchase_report_main"
+              action="action_purchase_order_analysis_wizard"
+              sequence="15"
+              groups="purchase.group_purchase_manager"/>
+</odoo>

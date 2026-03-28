@@ -30,7 +30,8 @@ class PurchaseOrder(models.Model):
         string="Net Market Price",
         compute="_compute_net_price",
         currency_field='market_price_currency',
-        store=True
+        store=True,
+        group_operator='avg',
     )
     material_unit = fields.Many2one('uom.uom', string="Market Price Unit",
                                     default=lambda self: self.env.ref('uom.product_uom_oz').id)
@@ -110,8 +111,48 @@ class PurchaseOrder(models.Model):
         string="Product Quality",
         compute="_compute_product_quality",
         store=True,
+        # SQL uses avg(); grouped list totals are replaced in read_group with weight-aware average.
         group_operator='avg',
     )
+
+    @api.model
+    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+        """Use weighted average for product_quality in grouped views (same as Order Analysis wizard).
+
+        Weight = total_first_process per order: sum(pq * weight) / sum(weight).
+        """
+        res = super().read_group(
+            domain, fields, groupby,
+            offset=offset, limit=limit, orderby=orderby, lazy=lazy,
+        )
+        if not res:
+            return res
+        if fields and not any(f and f.split(':')[0] == 'product_quality' for f in fields):
+            return res
+        if not fields and not any('product_quality' in row for row in res):
+            return res
+
+        groupby_list = [groupby] if isinstance(groupby, str) else (list(groupby) if groupby else [])
+
+        def _weighted_product_quality(orders):
+            tw = sum(o.total_first_process for o in orders)
+            if not tw:
+                return 0.0
+            wq = sum(o.product_quality * o.total_first_process for o in orders)
+            return self._round_product_quality(wq / tw)
+
+        if not groupby_list:
+            orders = self.search(domain)
+            if res and 'product_quality' in res[0]:
+                res[0]['product_quality'] = _weighted_product_quality(orders)
+            return res
+
+        for line in res:
+            dom = line.get('__domain')
+            if not dom:
+                continue
+            line['product_quality'] = _weighted_product_quality(self.search(dom))
+        return res
 
     def action_create_invoice(self):
         """ Override the bill creation to copy the Order Deadline as the Bill Date. """
@@ -151,6 +192,10 @@ class PurchaseOrder(models.Model):
             order.total_without_weights_ugx = total_without_weights_ugx
             order.total_first_process = total_first_process
 
+    def _round_product_quality(self, value):
+        """Standard rounding to 2 decimals for weighted purity (same as Order Analysis wizard)."""
+        return round(float(value or 0.0), 2)
+
     @api.depends('order_line', 'order_line.product_quality', 'order_line.first_process_wt', 'total_first_process')
     def _compute_product_quality(self):
         for order in self:
@@ -158,7 +203,7 @@ class PurchaseOrder(models.Model):
                 total_weighted_quality = sum(
                     line.product_quality * line.first_process_wt for line in order.order_line
                 )
-                order.product_quality = self.custom_round_down(
+                order.product_quality = self._round_product_quality(
                     total_weighted_quality / order.total_first_process
                 )
             else:
@@ -183,7 +228,7 @@ class PurchaseOrder(models.Model):
                     total_weighted = sum(
                         line.product_quality * line.first_process_wt for line in order.order_line
                     )
-                    new_val = order.custom_round_down(total_weighted / order.total_first_process)
+                    new_val = order._round_product_quality(total_weighted / order.total_first_process)
                 else:
                     new_val = 0.0
                 order.write({'product_quality': new_val})
