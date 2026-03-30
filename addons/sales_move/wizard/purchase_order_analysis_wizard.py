@@ -21,9 +21,33 @@ class PurchaseOrderAnalysisLine(models.TransientModel):
         currency_field='currency_id',
     )
     product_quality = fields.Float(related='order_id.product_quality', string='Product Quality', readonly=True)
+    manual_weighted_product_quality = fields.Float(
+        related='order_id.manual_weighted_product_quality',
+        string='Manual Wtd. PQ',
+        readonly=True,
+    )
     total_first_process = fields.Float(related='order_id.total_first_process', string='Total First Process', readonly=True)
     total_with_weights = fields.Float(related='order_id.total_with_weights', string='Total RM', readonly=True)
     currency_id = fields.Many2one(related='order_id.company_id.currency_id', string='Currency', readonly=True)
+    order_currency_id = fields.Many2one(related='order_id.currency_id', string='Order Currency', readonly=True)
+    total_original_subtotal = fields.Monetary(
+        related='order_id.total_original_subtotal',
+        string='Original Subtotal',
+        readonly=True,
+        currency_field='order_currency_id',
+    )
+    total_effective_subtotal = fields.Monetary(
+        related='order_id.total_effective_subtotal',
+        string='Effective Subtotal',
+        readonly=True,
+        currency_field='order_currency_id',
+    )
+    manual_pq_profit_loss = fields.Monetary(
+        related='order_id.manual_pq_profit_loss',
+        string='Profit / Loss',
+        readonly=True,
+        currency_field='order_currency_id',
+    )
 
 
 class PurchaseOrderAnalysisWizard(models.TransientModel):
@@ -71,24 +95,58 @@ class PurchaseOrderAnalysisWizard(models.TransientModel):
         readonly=True,
         digits=(16, 2),
     )
+    average_weighted_manual_product_quality = fields.Float(
+        string='Average Weighted Manual Product Quality',
+        compute='_compute_averages',
+        readonly=True,
+        digits=(16, 2),
+    )
+    total_original_subtotal_sum = fields.Monetary(
+        string='Sum Original Subtotal',
+        compute='_compute_averages',
+        currency_field='currency_id',
+        readonly=True,
+    )
+    total_effective_subtotal_sum = fields.Monetary(
+        string='Sum Effective Subtotal',
+        compute='_compute_averages',
+        currency_field='currency_id',
+        readonly=True,
+    )
+    total_manual_pq_profit_loss_sum = fields.Monetary(
+        string='Sum Profit / Loss',
+        compute='_compute_averages',
+        currency_field='currency_id',
+        readonly=True,
+    )
     selected_count = fields.Integer(
         string='Selected Orders',
         compute='_compute_averages',
         readonly=True,
     )
 
-    @api.depends('order_line_ids', 'order_line_ids.selected', 'order_line_ids.order_id.net_price',
-                 'order_line_ids.order_id.product_quality', 'order_line_ids.order_id.total_first_process')
+    @api.depends(
+        'order_line_ids', 'order_line_ids.selected', 'order_line_ids.order_id.net_price',
+        'order_line_ids.order_id.product_quality', 'order_line_ids.order_id.total_first_process',
+        'order_line_ids.order_id.manual_weighted_product_quality',
+        'order_line_ids.order_id.total_manual_process_weight',
+        'order_line_ids.order_id.total_original_subtotal', 'order_line_ids.order_id.total_effective_subtotal',
+        'order_line_ids.order_id.manual_pq_profit_loss',
+    )
     def _compute_averages(self):
         for wizard in self:
             selected_lines = wizard.order_line_ids.filtered(lambda l: l.selected and l.order_id)
             if not selected_lines:
                 wizard.average_net_price = 0.0
                 wizard.average_weighted_product_quality = 0.0
+                wizard.average_weighted_manual_product_quality = 0.0
                 wizard.total_first_process_wt = 0.0
+                wizard.total_original_subtotal_sum = 0.0
+                wizard.total_effective_subtotal_sum = 0.0
+                wizard.total_manual_pq_profit_loss_sum = 0.0
                 wizard.selected_count = 0
-                if wizard.order_line_ids and wizard.order_line_ids[0].currency_id:
-                    wizard.currency_id = wizard.order_line_ids[0].currency_id
+                if wizard.order_line_ids and wizard.order_line_ids[0].order_currency_id:
+                    wizard.currency_id = wizard.order_line_ids[0].order_currency_id
                 continue
             # Average net price (simple average)
             total_net = sum(l.net_price for l in selected_lines)
@@ -105,8 +163,24 @@ class PurchaseOrderAnalysisWizard(models.TransientModel):
                 wizard.average_weighted_product_quality = round(weighted_sum / total_weight, 2)
             else:
                 wizard.average_weighted_product_quality = 0.0
-            if selected_lines and selected_lines[0].currency_id:
-                wizard.currency_id = selected_lines[0].currency_id
+            # Manual weighted PQ across orders (weight = total_manual_process_weight per order)
+            tw_m = sum(
+                l.order_id.total_manual_process_weight for l in selected_lines
+                if l.order_id.total_manual_process_weight
+            )
+            if tw_m:
+                w_manual = sum(
+                    l.order_id.manual_weighted_product_quality * l.order_id.total_manual_process_weight
+                    for l in selected_lines if l.order_id.total_manual_process_weight
+                )
+                wizard.average_weighted_manual_product_quality = round(w_manual / tw_m, 2)
+            else:
+                wizard.average_weighted_manual_product_quality = 0.0
+            wizard.total_original_subtotal_sum = sum(l.order_id.total_original_subtotal for l in selected_lines)
+            wizard.total_effective_subtotal_sum = sum(l.order_id.total_effective_subtotal for l in selected_lines)
+            wizard.total_manual_pq_profit_loss_sum = sum(l.order_id.manual_pq_profit_loss for l in selected_lines)
+            if selected_lines and selected_lines[0].order_currency_id:
+                wizard.currency_id = selected_lines[0].order_currency_id
 
     def action_load_orders(self):
         self.ensure_one()

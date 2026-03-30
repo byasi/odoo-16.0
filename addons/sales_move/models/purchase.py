@@ -114,6 +114,95 @@ class PurchaseOrder(models.Model):
         # SQL uses avg(); grouped list totals are replaced in read_group with weight-aware average.
         group_operator='avg',
     )
+    manual_weighted_product_quality = fields.Float(
+        string='Manual Weighted Product Quality',
+        compute='_compute_manual_pq_and_subtotals',
+        store=True,
+        digits=(16, 2),
+    )
+    total_manual_process_weight = fields.Float(
+        string='Manual PQ Weight',
+        compute='_compute_manual_pq_and_subtotals',
+        store=True,
+        help='Sum of process weights on lines where manual product quality is set.',
+    )
+    total_original_subtotal = fields.Monetary(
+        string='Total Original Subtotal',
+        compute='_compute_manual_pq_and_subtotals',
+        store=True,
+        currency_field='currency_id',
+        help='Sum of line original subtotals (calculated purity, before manual override).',
+    )
+    total_effective_subtotal = fields.Monetary(
+        string='Total Effective Subtotal',
+        compute='_compute_manual_pq_and_subtotals',
+        store=True,
+        currency_field='currency_id',
+        help='Sum of line subtotals (after manual product quality when set).',
+    )
+    manual_pq_profit_loss = fields.Monetary(
+        string='Profit / Loss (vs original purity)',
+        compute='_compute_manual_pq_and_subtotals',
+        store=True,
+        currency_field='currency_id',
+        help='Effective subtotal minus original subtotal (subtotal − original).',
+    )
+
+    @api.depends(
+        'order_line', 'order_line.display_type', 'order_line.manual_product_quality',
+        'order_line.first_process_wt', 'order_line.manual_first_process',
+        'order_line.original_subTotal', 'order_line.price_subtotal', 'order_line.product_quality',
+    )
+    def _compute_manual_pq_and_subtotals(self):
+        for order in self:
+            lines = order.order_line.filtered(
+                lambda l: not l.display_type and l.first_process_wt
+                and (l.product_quality > 0 or l.manual_product_quality > 0)
+            )
+            effective_sum = sum(lines.mapped('price_subtotal'))
+            # Lines without manual PQ: use the same figure for "original" and "effective" so rounding
+            # differences between original_subTotal and price_subtotal never create spurious profit/loss.
+            # Lines with manual PQ: original uses calculated purity subtotal, effective uses actual subtotal.
+            original_sum = 0.0
+            for line in lines:
+                if line.manual_product_quality:
+                    original_sum += line.original_subTotal
+                else:
+                    original_sum += line.price_subtotal
+
+            order.total_effective_subtotal = effective_sum
+            order.total_original_subtotal = original_sum
+            diff = effective_sum - original_sum
+            currency = order.currency_id
+            if currency:
+                order.manual_pq_profit_loss = currency.round(diff)
+            else:
+                order.manual_pq_profit_loss = float_round(diff, precision_digits=2)
+
+            manual_lines = lines.filtered(lambda l: l.manual_product_quality)
+            tw = 0.0
+            wsum = 0.0
+            for line in manual_lines:
+                wt = line.manual_first_process if line.manual_first_process > 0 else line.first_process_wt
+                tw += wt
+                wsum += line.manual_product_quality * wt
+            order.total_manual_process_weight = tw
+            order.manual_weighted_product_quality = round(wsum / tw, 2) if tw else 0.0
+
+    @api.model
+    def recompute_all_manual_pq_totals(self):
+        """Refresh stored subtotal / P/L fields after compute logic changes. Run once via Server Action."""
+        orders = self.search([])
+        if not orders:
+            return 0
+        fnames = [
+            'total_original_subtotal', 'total_effective_subtotal', 'manual_pq_profit_loss',
+            'manual_weighted_product_quality', 'total_manual_process_weight',
+        ]
+        for fname in fnames:
+            self.env.add_to_compute(self._fields[fname], orders)
+        orders._recompute_recordset(fnames)
+        return len(orders)
 
     @api.model
     def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):

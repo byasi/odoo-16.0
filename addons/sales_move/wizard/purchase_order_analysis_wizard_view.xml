@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <form string="Purchase Order Analysis">
                 <sheet>
+                    <field name="currency_id" invisible="1"/>
                     <group>
                         <group string="Date Range">
                             <field name="date_from"/>
@@ -25,19 +26,27 @@
                                     <field name="state" readonly="1"/>
                                     <field name="net_price" readonly="1"/>
                                     <field name="product_quality" readonly="1"/>
+                                    <field name="manual_weighted_product_quality" readonly="1" optional="hide"/>
                                     <field name="total_first_process" readonly="1"/>
                                     <field name="total_with_weights" readonly="1"/>
-                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="total_original_subtotal" readonly="1" optional="hide"/>
+                                    <field name="total_effective_subtotal" readonly="1" optional="hide"/>
+                                    <field name="manual_pq_profit_loss" readonly="1" optional="hide"
+                                           decoration-success="manual_pq_profit_loss &gt;= 0"
+                                           decoration-danger="manual_pq_profit_loss &lt; 0"/>
                                 </tree>
                             </field>
                         </page>
                     </notebook>
                     <group attrs="{'invisible': [('has_orders', '=', False)]}" string="Averages (selected orders)">
                         <field name="selected_count" readonly="1"/>
-                        <field name="currency_id" readonly="1"/>
                         <field name="average_net_price" readonly="1"/>
                         <field name="average_weighted_product_quality" readonly="1"/>
+                        <field name="average_weighted_manual_product_quality" readonly="1"/>
                         <field name="total_first_process_wt" readonly="1"/>
+                        <field name="total_original_subtotal_sum" readonly="1"/>
+                        <field name="total_effective_subtotal_sum" readonly="1"/>
+                        <field name="total_manual_pq_profit_loss_sum" readonly="1"/>
                     </group>
                 </sheet>
                 <footer>
