@@ -145,6 +145,7 @@ class PurchaseOrder(models.Model):
         compute='_compute_manual_pq_and_subtotals',
         store=True,
         currency_field='currency_id',
+        groups='sales_move.group_profit_access',
         help='Effective subtotal minus original subtotal (subtotal − original).',
     )
 
@@ -766,7 +767,8 @@ class PurchaseOrder(models.Model):
         string="Profit/Loss",
         currency_field='transaction_currency',
         compute="_compute_profit_loss",
-        store=True
+        store=True,
+        groups='sales_move.group_profit_access',
     )
 
     @api.depends('current_net_total', 'net_total')

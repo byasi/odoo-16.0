@@ -32,6 +32,7 @@
                                     <field name="total_original_subtotal" readonly="1" optional="hide"/>
                                     <field name="total_effective_subtotal" readonly="1" optional="hide"/>
                                     <field name="manual_pq_profit_loss" readonly="1" optional="hide"
+                                           groups="sales_move.group_profit_access"
                                            decoration-success="manual_pq_profit_loss &gt;= 0"
                                            decoration-danger="manual_pq_profit_loss &lt; 0"/>
                                 </tree>
@@ -46,7 +47,7 @@
                         <field name="total_first_process_wt" readonly="1"/>
                         <field name="total_original_subtotal_sum" readonly="1"/>
                         <field name="total_effective_subtotal_sum" readonly="1"/>
-                        <field name="total_manual_pq_profit_loss_sum" readonly="1"/>
+                        <field name="total_manual_pq_profit_loss_sum" readonly="1" groups="sales_move.group_profit_access"/>
                     </group>
                 </sheet>
                 <footer>

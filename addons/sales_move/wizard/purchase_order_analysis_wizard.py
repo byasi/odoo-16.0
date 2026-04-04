@@ -43,11 +43,25 @@ class PurchaseOrderAnalysisLine(models.TransientModel):
         currency_field='order_currency_id',
     )
     manual_pq_profit_loss = fields.Monetary(
-        related='order_id.manual_pq_profit_loss',
         string='Profit / Loss',
+        compute='_compute_manual_pq_profit_loss',
         readonly=True,
         currency_field='order_currency_id',
     )
+
+    @api.depends(
+        'order_id',
+        'order_id.total_original_subtotal',
+        'order_id.total_effective_subtotal',
+    )
+    def _compute_manual_pq_profit_loss(self):
+        """Do not use related= to PO field: it forces a read of a group-restricted field for all users."""
+        has_pl = self.env.user.has_group('sales_move.group_profit_access')
+        for line in self:
+            if has_pl and line.order_id:
+                line.manual_pq_profit_loss = line.order_id.manual_pq_profit_loss
+            else:
+                line.manual_pq_profit_loss = 0.0
 
 
 class PurchaseOrderAnalysisWizard(models.TransientModel):
@@ -131,7 +145,6 @@ class PurchaseOrderAnalysisWizard(models.TransientModel):
         'order_line_ids.order_id.manual_weighted_product_quality',
         'order_line_ids.order_id.total_manual_process_weight',
         'order_line_ids.order_id.total_original_subtotal', 'order_line_ids.order_id.total_effective_subtotal',
-        'order_line_ids.order_id.manual_pq_profit_loss',
     )
     def _compute_averages(self):
         for wizard in self:
@@ -178,7 +191,8 @@ class PurchaseOrderAnalysisWizard(models.TransientModel):
                 wizard.average_weighted_manual_product_quality = 0.0
             wizard.total_original_subtotal_sum = sum(l.order_id.total_original_subtotal for l in selected_lines)
             wizard.total_effective_subtotal_sum = sum(l.order_id.total_effective_subtotal for l in selected_lines)
-            wizard.total_manual_pq_profit_loss_sum = sum(l.order_id.manual_pq_profit_loss for l in selected_lines)
+            # Sum line P/L (lines never read PO.manual_pq_profit_loss for users without Profit Access)
+            wizard.total_manual_pq_profit_loss_sum = sum(l.manual_pq_profit_loss for l in selected_lines)
             if selected_lines and selected_lines[0].order_currency_id:
                 wizard.currency_id = selected_lines[0].order_currency_id
 

@@ -10,6 +10,7 @@
     'website': "",
     'depends': ['base', 'account', 'sale_management', 'purchase', 'stock', 'mrp'],
     'data': [
+        'security/sales_move_groups.xml',
         'security/ir.model.access.csv',
         'views/account_payment_view.xml',
         'views/config_settings_view.xml',

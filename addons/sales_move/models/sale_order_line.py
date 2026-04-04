@@ -21,7 +21,12 @@ class SaleOrder(models.Model):
     market_price = fields.Monetary(string="Market Price", currency_field='market_price_currency')
     old_market_price = fields.Monetary(string="Old Market Price", currency_field='market_price_currency')
     current_market_price = fields.Monetary(string="Current Market Price", currency_field='market_price_currency', help="Market price set via the wizard.")
-    profit_loss = fields.Monetary(string="Profit/Loss", compute="_compute_profit_loss", currency_field='market_price_currency')
+    profit_loss = fields.Monetary(
+        string="Profit/Loss",
+        compute="_compute_profit_loss",
+        currency_field='market_price_currency',
+        groups='sales_move.group_profit_access',
+    )
     original_profit = fields.Monetary(string="Original Profit", compute="_compute_original_profit_loss", currency_field='market_price_currency')
     discount = fields.Float(string="Discount/additions", default=-23)
     net_price = fields.Monetary(

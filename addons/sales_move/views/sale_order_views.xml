@@ -56,7 +56,7 @@
                     <field name="current_exchange_rate_currency_from" string="Rate From Currency" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="current_exchange_rate_currency_to" string="Rate To Currency" attrs="{'invisible': [('state', '!=', 'unfixed')]}"/>
                     <field name="current_exchange_rate" string="Current Exchange Rate" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
-                    <field name="profit_loss" string="Profit/Loss" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
+                    <field name="profit_loss" string="Profit/Loss" groups="sales_move.group_profit_access" attrs="{'invisible': [('state', '!=', 'unfixed')]}" />
                 </xpath>
                 <xpath expr="//field[@widget='section_and_note_text']" position="after">
                     <field name="gross_weight" string="Gross Weight" attrs="{
@@ -175,7 +175,7 @@
                 </xpath>
                 <xpath expr="//tree/field[@name='invoice_status']" position="before">
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}" sum="Profit or Loss(purchase cost and sale cost)" widget="monetary" optional="hide" />
-                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" groups="sales_move.group_profit_access"/>
                     <field name="state" decoration-success="state == 'sale' or state == 'done'" decoration-info="state == 'draft' or state == 'sent'" widget="badge" optional="show"/>
 
                 </xpath>
@@ -212,7 +212,7 @@
                     <field name="total_current_subTotal" sum="Total unFixed Amount" widget="monetary" string="Current Total" optional="hide" />
                     <field name="product_cost" string="Purchase Cost" sum="Purchase Cost" optional="show" />
                     <field name="original_profit" string="Profit" attrs="{'invisible': [('state', 'not in', ['sale', 'unfixed'])]}" sum="Profit or Loss(purchase cost and sale cost)" widget="monetary" optional="hide" />
-                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" />
+                    <field name="profit_loss" sum="Profit or Loss" widget="monetary" string="Profit/Loss" optional="hide" groups="sales_move.group_profit_access"/>
 
                 </xpath>
             </field>

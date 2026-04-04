@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_profit_access" model="res.groups">
+        <field name="name">Profit Access</field>
+        <field name="category_id" ref="base.module_category_inventory_purchase"/>
+        <field name="comment">Can see manual purity profit/loss (P/L) on purchase orders, reports, and analysis wizard.</field>
+    </record>
+</odoo>
